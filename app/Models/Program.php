@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\Digitaliseringsstatus;
 use App\Enums\Kildetype;
 use App\Enums\Programtype;
+use App\Sidecache\TommerSidecache;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\Storage;
 
 class Program extends Model
 {
-    use HasFactory;
+    use HasFactory, TommerSidecache;
 
     protected $table = 'programmer';
 

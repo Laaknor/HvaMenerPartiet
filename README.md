@@ -115,6 +115,56 @@ Antall treff 0 viser søk uten resultat i Matomo-rapporten, som er nyttig for å
 | Tema | Foreslå tema | Søkeordet |
 | Tilbakemelding | Meld fra om feil | «Tema – Parti» |
 
+## Søkemotorer, LLM-er og cache
+
+Den offentlige siden har det søkemotorer og LLM-er ser etter. Alt lages ut fra rutene og databasen, så nye sider kommer med av seg selv.
+
+| Adresse | Innhold |
+| --- | --- |
+| `/robots.txt` | Slipper inn alle, men sperrer `/admin`, `/horizon` og tekniske stier. Utenfor produksjon: `Disallow: /` |
+| `/sitemap.xml` | Alle offentlige sider |
+| `/llms.txt` | Kort om tjenesten og metoden, med lenker til alle offentlige sider ([llmstxt.org](https://llmstxt.org)) |
+| `/llms-full.txt` | Alle publiserte temaer med hvert partis godkjente standpunkt, ordrett utdrag og kilde, i én Markdown-fil |
+| `/.well-known/security.txt` | Kontakt for sikkerhetshull: [Security Advisories](https://github.com/Laaknor/HvaMenerPartiet/security/advisories/new) i dette repoet ([RFC 9116](https://www.rfc-editor.org/rfc/rfc9116)) |
+
+Indeksering er bare på når `APP_ENV=production` (overstyr med `SEO_INDEKSER`). Ellers får alle svar `X-Robots-Tag: noindex`. Admin og Horizon får det alltid. Navn, beskrivelse, delingsbilde og stier står i `config/seo.php`.
+
+**Metadata.** Legg `<x-seo />` i `<head>` på alle offentlige sider. Den gir tittel, beskrivelse, kanonisk URL, robots, Open Graph, Twitter-kort og Schema.org (JSON-LD). Uten egne verdier brukes nettstedets navn, beskrivelse og `public/delingsbilde.png`.
+
+```blade
+<x-seo tittel="NATO" beskrivelse="Hva mener partiene om NATO? Se standpunkt og ordrette utdrag fra alle partiprogrammene." />
+```
+
+**Sitemap og llms.txt.** GET-ruter i `routes/web.php` uten parametere kommer med automatisk. Gi dem gjerne tittel og beskrivelse for llms.txt. En rute med parametere trenger en kilde som lister sidene:
+
+```php
+Route::get('om', OmController::class)->sitemap(tittel: 'Om tjenesten', beskrivelse: 'Metode, skala og kjente svakheter');
+Route::get('tema/{tema:slug}', TemaController::class)->sitemap(TemaSider::class);
+Route::get('sok', SokController::class)->utenforSitemap();
+```
+
+```php
+class TemaSider implements \App\Seo\Sitemapkilde
+{
+    public function sider(): iterable
+    {
+        foreach (Tema::where('status', Temastatus::Publisert)->get() as $tema) {
+            yield new Side(url: route('tema', $tema), tittel: $tema->navn, beskrivelse: $tema->pastand, sistEndret: $tema->updated_at);
+        }
+    }
+}
+```
+
+**Cache.** Offentlige sider lagres ferdig rendret i Redis i 24 timer (`SIDECACHE_LEVETID`). Det gjelder alle GET-sider i web-gruppen, unntatt admin, Horizon, innloggede brukere, feilsider og svar med flash-meldinger. CSRF-tokenet settes inn per besøkende, så skjemaer og Livewire virker. Svarene har `ETag`, så nettleseren får `304` når siden er uendret, og `X-Sidecache: treff` eller `lagret` viser hva som skjedde.
+
+Cachen tømmes
+
+- når innhold endres: alle lagringer og slettinger av partier, programmer, kapitler, avsnitt, setninger, temaer og standpunkter, for eksempel en godkjenning i admin (trait `TommerSidecache`),
+- ved ny deployment: `php artisan optimize` tømmer den, og nøkkelen inneholder deployet versjon (git-commit, app-mappe og byggede ressurser, eller `APP_DEPLOYMENT` hvis den er satt),
+- manuelt med `php artisan sidecache:tom`.
+
+Cachen er av når `APP_ENV=local`, og i testene. En rute holdes utenfor med `->withoutMiddleware(\App\Http\Middleware\Sidecache::class)`. Byggede ressurser i `public/build/assets` har hash i navnet og caches i ett år av nettleseren (se `public/.htaccess`; bruker du nginx, legg inn tilsvarende `Cache-Control: public, max-age=31536000, immutable`).
+
 ## Tester
 
 ```sh

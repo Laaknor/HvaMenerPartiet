@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use App\Enums\Programtype;
+use App\Sidecache\TommerSidecache;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Parti extends Model
 {
-    use HasFactory;
+    use HasFactory, TommerSidecache;
 
     protected $table = 'partier';
 
