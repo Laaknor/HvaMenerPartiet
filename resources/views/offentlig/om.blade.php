@@ -5,6 +5,7 @@
 
         <h2>Kildene</h2>
         <p>Standpunktene bygger på partienes arbeidsprogram for stortingsperioden 2025–2029 og deres gjeldende prinsipprogram. Programmene er gjort om fra PDF til tekst, delt i kapitler, avsnitt og setninger, og kontrollert mot originalen. Hver setning har en fast adresse, så sitatene lenker rett til riktig sted. <a href="{{ route('programmer') }}">Se programmene</a>.</p>
+        <p>Eldre stortingsprogrammer, lokalvalgprogrammer, sametingsprogrammer og prinsipprogrammer fra 1884 og fram til i dag kommer fra Sikts samling av partidokumenter. Kilde: Sikt – Kunnskapssektorens tjenesteleverandør. (u.å.). <cite>Data om det politiske system</cite>. Hentet 25. oktober 2026, fra <a href="https://polsys.sikt.no/">https://polsys.sikt.no/</a>.</p>
 
         <h2>Skalaen</h2>
         <p>Hvert tema har en nøytralt formulert påstand, for eksempel «Norge bør være medlem av NATO». Standpunktet sier hvordan programmet forholder seg til påstanden:</p>

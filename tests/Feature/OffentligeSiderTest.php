@@ -303,4 +303,12 @@ class OffentligeSiderTest extends TestCase
     {
         $this->get('/om')->assertOk()->assertSee('Om og metode')->assertSee('Delt / uklart');
     }
+
+    public function test_sidene_krediterer_sikt_for_partidokumentene(): void
+    {
+        $sitat = 'Sikt – Kunnskapssektorens tjenesteleverandør. (u.å.).';
+
+        $this->get('/om')->assertOk()->assertSee($sitat, false)->assertSee('https://polsys.sikt.no/', false);
+        $this->get('/')->assertOk()->assertSee($sitat, false)->assertSee('Hentet 25. oktober 2026', false);
+    }
 }

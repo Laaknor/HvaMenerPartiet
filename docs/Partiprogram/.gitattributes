@@ -1,0 +1,5 @@
+# Partidokumentene fra Sikt legges inn uendret (CRLF og ISO-8859-1 beholdes).
+*.html -text diff
+*.rtf -text diff
+*.docx binary
+*.pdf binary

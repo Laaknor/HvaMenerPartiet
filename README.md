@@ -57,6 +57,8 @@ php artisan bruker:admin deg@eksempel.no --fjern   # fjerner tilgangen
 
 Alle partiprogram-PDF-ene ligger i `docs/Partiprogram/` i repoet, og det er der systemet leser dem. Hvert program peker på sin fil med `kildefil` i `database/data/programmer.php` (stien er relativ til `docs/Partiprogram`). Et nytt eller endret program legges inn ved å committe PDF-en dit og enten oppdatere `programmer.php` og kjøre `php artisan db:seed --class=ProgramSeeder`, eller velge filen på programmet i admin.
 
+I tillegg ligger nesten tusen historiske stortings-, prinsipp-, sameting- og lokalvalgprogrammer fra Sikt i `docs/Partiprogram/`, med oversikt i `docs/Partiprogram/sikt-partidokumenter.md`. All bruk av dem må siteres: «Sikt – Kunnskapssektorens tjenesteleverandør. (u.å.). Data om det politiske system. Hentet 25. oktober 2026, fra https://polsys.sikt.no/». Sitatet står nederst på alle offentlige sider og på «Om og metode».
+
 Programmer som mangler PDF, har likevel en planlagt filsti i `programmer.php`. `php artisan program:last-ned-til-docs` henter dem fra `kilde_url` (gjeldende programmer først), og `docs/Partiprogram/kildeliste.md` lister alle lenkene, også for programmer fra tidligere stortingsperioder. Historiske programmer (`gjeldende` => false) behandles bare når ingen gjeldende programmer venter i samme del av prosessflyten (`FLYT_HISTORISKE=false` stopper dem helt).
 
 Ved innlesing kopieres filen til lagringsdisken med SHA-256 i navnet, så hver versjon som er digitalisert beholdes. Endres filen i `docs/`, leses den inn og digitaliseres på nytt av seg selv, og strukturen må gjennomgås igjen.
