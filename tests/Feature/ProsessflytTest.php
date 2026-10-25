@@ -63,7 +63,7 @@ class ProsessflytTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $medFil = Program::query()->whereNotNull('kildefil')->get();
-        $this->assertCount(10, $medFil);
+        $this->assertGreaterThanOrEqual(10, $medFil->count());
         foreach ($medFil as $program) {
             $this->assertTrue($program->kildefilFinnes(), "{$program->nokkel}: finner ikke {$program->kildefil}");
         }
@@ -123,6 +123,55 @@ class ProsessflytTest extends TestCase
         Prosesskjoring::first()->update(['status' => Kjoringsstatus::Ferdig]);
         $this->assertSame(1, $planlegger->planlegg()['innlesing']);
         Queue::assertPushed(LesInnProgram::class, 3);
+    }
+
+    public function test_historiske_programmer_venter_til_gjeldende_er_ferdige_i_gruppen(): void
+    {
+        Queue::fake();
+        config(['hvamenerpartiet.flyt.kapasitet.import' => 1]);
+        $gammel = $this->lagProgram('gg', gjeldende: false);
+        $ny = $this->lagProgram('nn');
+        $planlegger = app(Prosessplanlegger::class);
+
+        $this->assertFalse($planlegger->historiskeSlippesTil(Prosessteg::Innlesing));
+        $this->assertSame([$ny->id], array_map(fn ($k) => $k[0]->id, $planlegger->kandidater(Prosessteg::Innlesing, 5)));
+
+        // Det gjeldende programmet venter på digitalisering, og det holder
+        // fortsatt de historiske igjen i import-gruppen.
+        $ny->update(['filhash' => hash_file('sha256', $ny->kildefilSti()), 'lastet_ned' => now()->addMinute(), 'filsti' => 'x.pdf', 'digitalisering_status' => Digitaliseringsstatus::LastetNed]);
+        Storage::disk('local')->put('x.pdf', '%PDF');
+        $this->assertFalse($planlegger->historiskeSlippesTil(Prosessteg::Innlesing));
+
+        // Når det gjeldende venter på manuell gjennomgang, slippes de historiske til.
+        $ny->update(['digitalisering_status' => Digitaliseringsstatus::Digitalisert]);
+        $this->assertTrue($planlegger->historiskeSlippesTil(Prosessteg::Innlesing));
+        $this->assertSame(1, $planlegger->planlegg()['innlesing']);
+        $this->assertSame($gammel->id, Prosesskjoring::first()->program_id);
+    }
+
+    public function test_historiske_programmer_kan_slas_av(): void
+    {
+        Queue::fake();
+        config(['hvamenerpartiet.flyt.historiske' => false]);
+        $this->lagProgram('gg', gjeldende: false);
+
+        $this->assertSame([], app(Prosessplanlegger::class)->kandidater(Prosessteg::Innlesing, 5));
+    }
+
+    public function test_seederen_kobler_bare_til_filer_som_finnes(): void
+    {
+        config(['hvamenerpartiet.digitalisering.programmappe' => base_path('docs/Partiprogram')]);
+        $this->seed(DatabaseSeeder::class);
+
+        $data = collect(require database_path('data/programmer.php'));
+        $this->assertSame($data->count(), Program::count());
+        $this->assertSame($data->where('gjeldende', false)->count(), Program::where('gjeldende', false)->count());
+        foreach ($data as $p) {
+            $this->assertNotNull($p['kildefil'] ?? null, "{$p['parti']} {$p['tittel']} mangler planlagt filsti");
+        }
+        foreach (Program::all() as $program) {
+            $this->assertTrue($program->kildefil === null || $program->kildefilFinnes(), $program->nokkel);
+        }
     }
 
     public function test_samme_steg_startes_ikke_to_ganger_for_samme_program(): void
@@ -231,7 +280,7 @@ class ProsessflytTest extends TestCase
         $this->assertTrue(Prosesskjoring::where('steg', Prosessteg::Embeddings)->where('status', Kjoringsstatus::Ferdig)->exists());
     }
 
-    private function lagProgram(string $slug): Program
+    private function lagProgram(string $slug, bool $gjeldende = true): Program
     {
         $parti = Parti::create(['navn' => "Parti {$slug}", 'forkortelse' => strtoupper($slug), 'slug' => $slug]);
         $fil = "Stortingsprogram/{$slug}.pdf";
@@ -240,7 +289,7 @@ class ProsessflytTest extends TestCase
         return Program::create([
             'parti_id' => $parti->id, 'type' => 'arbeidsprogram', 'tittel' => 'Arbeidsprogram 2025–2029',
             'slug' => 'arbeidsprogram-2025', 'nokkel' => "{$slug}-ap2025", 'periode' => '2025-2029', 'vedtatt_ar' => 2025,
-            'kildefil' => $fil,
+            'kildefil' => $fil, 'gjeldende' => $gjeldende,
         ]);
     }
 
