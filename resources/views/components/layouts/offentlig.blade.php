@@ -68,6 +68,7 @@
             <div>
                 <x-logo class="logo--liten" />
                 <p>Standpunktene er hentet fra partienes egne programmer, kontrollert manuelt og vist med ordrett sitat og lenke til kilden. Siden anbefaler ikke parti.</p>
+                <p class="bunn__kilde">Historiske partiprogrammer: Sikt – Kunnskapssektorens tjenesteleverandør. (u.å.). <cite>Data om det politiske system</cite>. Hentet 25. oktober 2026, fra <a href="https://polsys.sikt.no/">https://polsys.sikt.no/</a>.</p>
             </div>
             <ul class="bunn__lenker">
                 <li><a href="{{ route('om') }}">Om og metode</a></li>

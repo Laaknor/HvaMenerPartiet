@@ -103,4 +103,22 @@ Disse er ikke lagt inn som programmer ennå, men kan legges til senere:
 - RV og Rødt, programmer fra 1975: https://www.pdf-arkivet.no/rv/index.html
 - Høyre 1993–1997: https://res.cloudinary.com/hoyre/images/v1695041340/Nye%20hoyre.no/Hovedside/Hoyres-partiprogram-1993-1997/Hoyres-partiprogram-1993-1997.pdf
 - Venstre 2005: https://www.venstre.no/files/organisasjon/organisasjon/stvprogram2005.pdf
-- Sikt (tidligere NSD) sitt partidokumentarkiv med programmer fra 1884: https://polsys.sikt.no/en/parties/politicaldocuments
+- Sikt (tidligere NSD) sitt partidokumentarkiv med programmer fra 1884: https://polsys.sikt.no/en/parties/politicaldocuments. Er nå lagt inn, se under.
+
+## Partidokumenter fra Sikt (lagt inn 25.10.2026)
+
+947 stortingsprogrammer, prinsipprogrammer, sametingsprogrammer og
+lokalvalgprogrammer fra 1884 til 2025 er lagt inn fra Sikts samling av
+partidokumenter. De ligger i periodemappene over og i de nye mappene
+`Sametingsprogram ÅÅÅÅ-ÅÅÅÅ/` og `Lokalvalgprogram ÅÅÅÅ-ÅÅÅÅ/`, med `sikt`
+og dokumentnummeret i filnavnet. Oversikten over alle filene står i
+[`sikt-partidokumenter.md`](sikt-partidokumenter.md) og
+[`sikt-partidokumenter.csv`](sikt-partidokumenter.csv).
+
+Dette fyller flere hull i listene over, blant annet SV 2021–2025, Sp
+2017–2021 og FrP, SV, Sp, Rødt, MDG og KrF i 2013–2017 og 2017–2021.
+Programmene er ikke koblet til `database/data/programmer.php` ennå.
+
+All bruk av disse dataene må siteres slik:
+
+> Sikt – Kunnskapssektorens tjenesteleverandør. (u.å.). Data om det politiske system. Hentet 25. oktober 2026, fra https://polsys.sikt.no/
