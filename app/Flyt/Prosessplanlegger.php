@@ -30,6 +30,10 @@ use Throwable;
  *
  * En kjøring som har feilet, startes ikke automatisk igjen før noe er endret
  * (ny fil, ny innlesing eller ny godkjenning), eller den startes på nytt i admin.
+ *
+ * Gjeldende programmer går alltid først. Historiske programmer (fra tidligere
+ * stortingsperioder) får bare kapasitet i en gruppe når ingen gjeldende
+ * programmer venter på noe steg i den gruppen, og de nyeste tas først.
  */
 class Prosessplanlegger
 {
@@ -169,6 +173,35 @@ class Prosessplanlegger
      */
     public function kandidater(Prosessteg $steg, int $maks): array
     {
+        $resultat = $this->kandidaterFor($steg, $maks, gjeldende: true);
+
+        $igjen = $maks - count($resultat);
+        if ($igjen > 0 && $this->historiskeSlippesTil($steg)) {
+            $resultat = [...$resultat, ...$this->kandidaterFor($steg, $igjen, gjeldende: false)];
+        }
+
+        return $resultat;
+    }
+
+    /** Om historiske programmer kan bruke kapasiteten i gruppen til steget nå. */
+    public function historiskeSlippesTil(Prosessteg $steg): bool
+    {
+        if (! config('hvamenerpartiet.flyt.historiske', true)) {
+            return false;
+        }
+
+        foreach (Prosessteg::iGruppe($steg->kapasitetsgruppe()) as $annet) {
+            if ($this->kandidaterFor($annet, 1, gjeldende: true) !== []) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** @return list<array{0: Program, 1: ?Tema, 2: ?Kildetype}> */
+    private function kandidaterFor(Prosessteg $steg, int $maks, bool $gjeldende): array
+    {
         if ($maks <= 0) {
             return [];
         }
@@ -185,7 +218,12 @@ class Prosessplanlegger
             return count($resultat) < $maks;
         };
 
-        $programmer = Program::query()->with('parti')->gjeldende()->orderBy('parti_id')->orderBy('id');
+        $programmer = Program::query()->with('parti')->where('gjeldende', $gjeldende);
+        if (! $gjeldende) {
+            // Nyeste periode først.
+            $programmer->orderByDesc('vedtatt_ar');
+        }
+        $programmer->orderBy('parti_id')->orderBy('id');
 
         switch ($steg) {
             case Prosessteg::Innlesing:

@@ -61,5 +61,8 @@ return [
         ],
         // En jobb som har stått som «kjører» lenger enn dette, regnes som avbrutt.
         'maks_kjoretid' => (int) env('FLYT_MAKS_KJORETID', 1200),
+        // Historiske programmer behandles bare når ingen gjeldende programmer
+        // venter i samme kapasitetsgruppe. false stopper dem helt.
+        'historiske' => (bool) env('FLYT_HISTORISKE', true),
     ],
 ];

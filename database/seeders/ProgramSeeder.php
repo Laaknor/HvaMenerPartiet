@@ -23,18 +23,25 @@ class ProgramSeeder extends Seeder
                 'tittel' => $data['tittel'],
                 'periode' => $data['periode'] ?? null,
                 'vedtatt_ar' => $data['vedtatt_ar'],
-                'gjeldende' => true,
+                'gjeldende' => $data['gjeldende'] ?? true,
                 'sprak' => 'nb',
                 'kilde_url' => $data['kilde_url'],
                 'kilde_side' => $data['kilde_side'] ?? null,
             ];
 
-            // En kildefil som er valgt i admin, overskrives ikke med null.
+            $program = Program::query()->firstOrNew(['nokkel' => $nokler['nokkel']]);
+            $program->fill($felter);
+
+            // Programmet kobles til filen først når den ligger i docs/. En
+            // kildefil som er valgt i admin, overskrives ikke med en som mangler.
             if (($data['kildefil'] ?? null) !== null) {
-                $felter['kildefil'] = $data['kildefil'];
+                $forslag = (clone $program)->fill(['kildefil' => $data['kildefil']]);
+                if ($forslag->kildefilFinnes()) {
+                    $program->kildefil = $data['kildefil'];
+                }
             }
 
-            Program::query()->updateOrCreate(['nokkel' => $nokler['nokkel']], $felter);
+            $program->save();
         }
     }
 }
