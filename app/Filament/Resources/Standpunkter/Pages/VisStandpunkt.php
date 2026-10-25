@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Standpunkter\Pages;
 
-use App\Filament\Handlinger\Feilsokingshandling;
+use App\Filament\Handlinger\MerkSomFeil;
 use App\Filament\Resources\Standpunkter\StandpunktResource;
 use Filament\Resources\Pages\ViewRecord;
 
@@ -12,6 +12,6 @@ class VisStandpunkt extends ViewRecord
 
     protected function getHeaderActions(): array
     {
-        return [Feilsokingshandling::make()];
+        return [MerkSomFeil::make()];
     }
 }

@@ -65,17 +65,4 @@ return [
         // venter i samme kapasitetsgruppe. false stopper dem helt.
         'historiske' => (bool) env('FLYT_HISTORISKE', true),
     ],
-
-    /*
-    | «Send til feilsøking» i admin. Pakken lagres alltid og kan hentes fra
-    | /api/feilsoking med FEILSOKING_TOKEN (minst 32 tegn; tomt slår API-et
-    | av). Med GitHub-token lages også en issue med de offentlige delene.
-    | GitHub-tokenet trenger bare «Issues: Read and write» på dette repoet.
-    */
-    'feilsoking' => [
-        'token' => env('FEILSOKING_TOKEN'),
-        'github_token' => env('FEILSOKING_GITHUB_TOKEN'),
-        'github_repo' => env('FEILSOKING_GITHUB_REPO', 'Laaknor/HvaMenerPartiet'),
-        'github_etikett' => env('FEILSOKING_GITHUB_ETIKETT', 'feilsøking'),
-    ],
 ];

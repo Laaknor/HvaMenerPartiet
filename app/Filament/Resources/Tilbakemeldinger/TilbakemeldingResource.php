@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Tilbakemeldinger;
 
-use App\Filament\Handlinger\Feilsokingshandling;
+use App\Filament\Handlinger\MerkSomFeil;
 use App\Filament\Resources\Standpunkter\StandpunktResource;
 use App\Filament\Resources\Tilbakemeldinger\Pages\ListTilbakemeldinger;
 use App\Models\Tilbakemelding;
@@ -75,7 +75,7 @@ class TilbakemeldingResource extends Resource
                     ->label(fn (Tilbakemelding $record) => $record->behandlet ? 'Åpne igjen' : 'Merk som behandlet')
                     ->icon(Heroicon::OutlinedCheck)
                     ->action(fn (Tilbakemelding $record) => $record->update(['behandlet' => ! $record->behandlet])),
-                Feilsokingshandling::make(),
+                MerkSomFeil::make(),
             ]);
     }
 

@@ -22,9 +22,6 @@ use Throwable;
  * tilbakemelding. Bare feltene som er listet her kommer med. Ingen hele
  * modeller, ingen konfigurasjon utover analyseinnstillingene, og ingen
  * brukerdata utover det som trengs (teksten i en tilbakemelding).
- *
- * Feltet «offentlig» i hver del sier om delen kan stå i en offentlig
- * GitHub-issue. Resten hentes bare via det token-beskyttede API-et.
  */
 class Pakkebygger
 {
@@ -41,7 +38,7 @@ class Pakkebygger
     }
 
     /** @return array<string, mixed> */
-    public function bygg(Model $modell, ?string $notat = null): array
+    public function bygg(Model $modell): array
     {
         $pakke = match (true) {
             $modell instanceof Standpunkt => $this->forStandpunkt($modell),
@@ -53,7 +50,6 @@ class Pakkebygger
         return $this->sensurerer->rens([
             'versjon' => self::VERSJON,
             'laget' => now()->toIso8601String(),
-            'notat' => $notat ?: null,
             'miljo' => $this->miljo(),
             ...$pakke,
         ]);
@@ -87,12 +83,12 @@ class Pakkebygger
         return [
             'type' => 'kjoring',
             'tittel' => "Kjøring #{$kjoring->id}: {$kjoring->steg->etikett()} · ".($kjoring->beskrivelse() ?: 'hele flyten'),
-            'kjoring' => $this->kjoringsrad($kjoring) + ['offentlig' => true],
+            'kjoring' => $this->kjoringsrad($kjoring),
             'program' => $kjoring->program ? $this->program($kjoring->program) : null,
             ...($standpunkt ? $this->standpunktdeler($standpunkt) : []),
             'jobblogg' => $kjoring->program
                 ? $this->jobblogg($kjoring->steg, $kjoring->program, $kjoring->tema, $standpunkt)
-                : null,
+                : [],
             'feilede_jobber' => $kjoring->program ? $this->feiledeJobber($kjoring->program, $kjoring->tema) : [],
         ];
     }
@@ -106,10 +102,7 @@ class Pakkebygger
         return [
             'type' => 'tilbakemelding',
             'tittel' => "Tilbakemelding #{$tilbakemelding->id}: {$tilbakemelding->tema->navn} · {$tilbakemelding->parti->navn}",
-            // Fritekst fra besøkende kan inneholde personopplysninger, så den
-            // står aldri i den offentlige issuen.
             'tilbakemelding' => [
-                'offentlig' => false,
                 'id' => $tilbakemelding->id,
                 'mottatt' => $tilbakemelding->created_at?->toIso8601String(),
                 'tema' => $tilbakemelding->tema->navn,
@@ -118,7 +111,7 @@ class Pakkebygger
                 'behandlet' => $tilbakemelding->behandlet,
             ],
             ...($standpunkt ? $this->standpunktdeler($standpunkt) : []),
-            'jobblogg' => $standpunkt ? $this->jobblogg(Prosessteg::Klassifisering, $standpunkt->program, $standpunkt->tema, $standpunkt) : null,
+            'jobblogg' => $standpunkt ? $this->jobblogg(Prosessteg::Klassifisering, $standpunkt->program, $standpunkt->tema, $standpunkt) : [],
             'feilede_jobber' => $standpunkt ? $this->feiledeJobber($standpunkt->program, $standpunkt->tema) : [],
         ];
     }
@@ -130,7 +123,6 @@ class Pakkebygger
             'tema' => $this->tema($standpunkt->tema),
             'program' => $this->program($standpunkt->program),
             'standpunkt' => [
-                'offentlig' => true,
                 'id' => $standpunkt->id,
                 'kildetype' => $standpunkt->kildetype->value,
                 'verdi' => $standpunkt->verdi->value,
@@ -143,16 +135,13 @@ class Pakkebygger
                 'prompt_versjon' => $standpunkt->prompt_versjon,
                 'oppdatert' => $standpunkt->updated_at?->toIso8601String(),
             ],
-            'kildesetninger' => [
-                'offentlig' => true,
-                'setninger' => $standpunkt->kildesetninger->map(fn (Setning $s) => [
-                    'nokkel' => $s->nokkel,
-                    'tekst' => $s->tekst,
-                ])->values()->all(),
-            ],
+            'kildesetninger' => $standpunkt->kildesetninger->map(fn (Setning $s) => [
+                'nokkel' => $s->nokkel,
+                'tekst' => $s->tekst,
+            ])->values()->all(),
             // Modellsvarene slik de ble lagret: gyldige svar tolket, ugyldige
             // med feil og råsvar.
-            'modellsvar' => ['offentlig' => true, 'kjoringer' => $standpunkt->kjoringer ?? []],
+            'modellsvar' => $standpunkt->kjoringer ?? [],
             'prompt' => $this->prompt($standpunkt),
         ];
     }
@@ -167,7 +156,6 @@ class Pakkebygger
     private function prompt(Standpunkt $standpunkt): array
     {
         $del = [
-            'offentlig' => true,
             'brukt_versjon' => $standpunkt->prompt_versjon,
             'gjeldende_versjon' => Klassifiserer::PROMPT_VERSJON,
             'merknad' => 'Bygget på nytt fra dagens data da pakken ble laget. Kan avvike fra prompten som ble brukt hvis programmet, temaet eller prompten er endret siden.',
@@ -199,7 +187,6 @@ class Pakkebygger
     private function tema(Tema $tema): array
     {
         return [
-            'offentlig' => true,
             'id' => $tema->id,
             'navn' => $tema->navn,
             'slug' => $tema->slug,
@@ -217,7 +204,6 @@ class Pakkebygger
         $program->loadMissing('parti');
 
         return [
-            'offentlig' => true,
             'id' => $program->id,
             'nokkel' => $program->nokkel,
             'tittel' => $program->tittel,
@@ -234,10 +220,9 @@ class Pakkebygger
     }
 
     /**
-     * De siste kjøringene for samme mål, nyeste først. Meldingene kan
-     * inneholde interne adresser, så delen er ikke offentlig.
+     * De siste kjøringene for samme mål, nyeste først.
      *
-     * @return array<string, mixed>
+     * @return list<array<string, mixed>>
      */
     private function jobblogg(Prosessteg $steg, Program $program, ?Tema $tema, ?Standpunkt $standpunkt): array
     {
@@ -247,10 +232,7 @@ class Pakkebygger
             ->limit(10)
             ->get();
 
-        return [
-            'offentlig' => false,
-            'kjoringer' => $kjoringer->map(fn (Prosesskjoring $k) => $this->kjoringsrad($k))->all(),
-        ];
+        return $kjoringer->map(fn (Prosesskjoring $k) => $this->kjoringsrad($k))->all();
     }
 
     /** @return array<string, mixed> */
@@ -276,13 +258,13 @@ class Pakkebygger
      * Horizon-merkene i jobben. Bare unntaket tas med, ikke hele jobben, og
      * stakksporet kortes ned.
      *
-     * @return array<string, mixed>
+     * @return list<array<string, mixed>>
      */
     private function feiledeJobber(Program $program, ?Tema $tema): array
     {
         $tabell = config('queue.failed.table', 'failed_jobs');
         if (! Schema::hasTable($tabell)) {
-            return ['offentlig' => false, 'jobber' => []];
+            return [];
         }
 
         $jobber = DB::table($tabell)
@@ -304,14 +286,13 @@ class Pakkebygger
             })
             ->all();
 
-        return ['offentlig' => false, 'jobber' => $jobber];
+        return $jobber;
     }
 
     /** @return array<string, mixed> */
     private function miljo(): array
     {
         return [
-            'offentlig' => true,
             'app_env' => config('app.env'),
             'deployment' => config('sidecache.deployment'),
             'modell' => config('hvamenerpartiet.ollama.modell'),

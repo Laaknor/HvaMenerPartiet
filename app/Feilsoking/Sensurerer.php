@@ -3,7 +3,7 @@
 namespace App\Feilsoking;
 
 /**
- * Siste sikring før en pakke lagres eller sendes: verdier fra miljøet som ser
+ * Siste sikring før en pakke lagres eller eksporteres: verdier fra miljøet som ser
  * ut som hemmeligheter (passord, nøkler, token), e-postadresser og
  * innloggingsinfo i URL-er byttes ut med [skjult]. Pakken bygges uansett bare
  * fra en fast liste med felt, så dette fanger det som kan ha sneket seg inn
@@ -50,8 +50,6 @@ class Sensurerer
 
         $verdier = [
             config('app.key'),
-            config('hvamenerpartiet.feilsoking.token'),
-            config('hvamenerpartiet.feilsoking.github_token'),
             config('database.connections.mysql.password'),
             config('database.redis.default.password'),
         ];

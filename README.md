@@ -78,29 +78,20 @@ Forsiden i admin (`/admin`) viser hvor programmene står, hva som kjører nå og
 
 Hver jobb får en rad under «Kjøringer», med status, varighet og feilmelding. En kjøring som har feilet, startes ikke automatisk igjen før noe er endret (ny fil, ny innlesing eller ny godkjenning). Den kan startes på nytt med «Prøv igjen». Alle steg kan også startes for hånd fra programsiden.
 
-## Send til feilsøking
+## Merk som feil
 
-Standpunkter, kjøringer og tilbakemeldinger har handlingen **«Send til feilsøking»** i admin. Den lager en feilsøkingspakke og viser den under «Feilsøking»:
+Standpunkter, kjøringer og tilbakemeldinger har handlingen **«Merk som feil»** i admin. Du skriver hvorfor det er feil, og det tas et øyeblikksbilde av det som trengs for å feilsøke:
 
 - vurderingen (standpunkt, sikkerhet, begrunnelse, merknader, modell og promptversjon)
 - kildesetningene, ordrett
 - prompten, bygget på nytt fra dagens data uten å kalle modellen, med gjenfinningstreffene
 - modellsvarene fra hver kjøring, med feil og råsvar
 - de siste kjøringene for samme mål og eventuelle feilede jobber fra køen (kortet stakkspor)
-- tema, program, analyseinnstillinger og et notat om hva som ser feil ut
+- tema, program, analyseinnstillinger og teksten i en tilbakemelding
 
-Pakken bygges bare fra feltene som er listet i `app/Feilsoking/Pakkebygger.php`. I tillegg byttes verdier fra miljøet som ser ut som hemmeligheter (navn med `KEY`, `SECRET`, `PASSWORD`, `TOKEN` o.l.), e-postadresser og innlogging i URL-er ut med `[skjult]`.
+Alt som er merket, står under **«Feil»**. **«Eksporter feil»** laster ned én JSON-fil med alle åpne feil (valgfritt bare de som ikke er eksportert før, eller også de løste), klar til å lastes opp i feilsøkingen. Feil står åpne til de merkes som løst.
 
-**GitHub-issue.** Med `FEILSOKING_GITHUB_TOKEN` lages en issue med merkelappen `feilsøking` for hver sak. Repoet er offentlig, så issuen får bare de offentlige delene: vurdering, kildesetninger, modellsvar og notatet. Teksten fra besøkende, jobbloggen og feilede jobber står bare i den private pakken. Bruk et fine-grained token med bare «Issues: Read and write» på dette repoet. Feiler GitHub, lagres pakken likevel.
-
-**Privat API, kun lesing.** Med `FEILSOKING_TOKEN` (minst 32 tegn, `openssl rand -hex 32`) kan pakkene hentes:
-
-```sh
-curl -H "Authorization: Bearer $FEILSOKING_TOKEN" https://hvamenerpartiet.no/api/feilsoking            # åpne saker (?alle=1 for alle)
-curl -H "Authorization: Bearer $FEILSOKING_TOKEN" https://hvamenerpartiet.no/api/feilsoking/<referanse>
-```
-
-Uten token svarer API-et 404. Det kan ikke endre noe, bare lese pakker som allerede er laget i admin.
+Pakken bygges bare fra feltene som er listet i `app/Feilsoking/Pakkebygger.php`. I tillegg byttes verdier fra miljøet som ser ut som hemmeligheter (navn med `KEY`, `SECRET`, `PASSWORD`, `TOKEN` o.l.), e-postadresser og innlogging i URL-er ut med `[skjult]`, både i pakken, i begrunnelsen og i eksporten.
 
 ## Arbeidsflyt med kommandoer
 
