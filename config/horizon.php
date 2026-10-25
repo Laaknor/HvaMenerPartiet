@@ -197,35 +197,41 @@ return [
     */
 
     'defaults' => [
-        'supervisor-1' => [
+        // Import av programfiler og digitalisering.
+        'import' => [
             'connection' => 'redis',
-            'queue' => ['default'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
+            'queue' => ['import', 'default'],
+            'balance' => 'simple',
+            'maxProcesses' => 2,
             'maxTime' => 0,
             'maxJobs' => 0,
-            'memory' => 128,
-            'tries' => 1,
-            'timeout' => 60,
+            'memory' => 512,
+            'tries' => 3,
+            'timeout' => 900,
+            'nice' => 0,
+        ],
+        // Embeddings og klassifisering går mot Ollama. Antall prosesser
+        // begrenses til det Ollama-serveren tåler.
+        'ollama' => [
+            'connection' => 'redis',
+            'queue' => ['embeddings', 'klassifisering'],
+            // Uten balansering starter Horizon (min + maks) / 2 prosesser, så
+            // begge settes til samme tall for et fast antall samtidige jobber.
+            'balance' => 'false',
+            'minProcesses' => (int) env('OLLAMA_SAMTIDIGE', 2),
+            'maxProcesses' => (int) env('OLLAMA_SAMTIDIGE', 2),
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 512,
+            'tries' => 3,
+            'timeout' => 900,
             'nice' => 0,
         ],
     ],
 
     'environments' => [
-        'production' => [
-            'supervisor-1' => [
-                'maxProcesses' => 10,
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
-            ],
-        ],
-
-        'local' => [
-            'supervisor-1' => [
-                'maxProcesses' => 3,
-            ],
-        ],
+        'production' => [],
+        'local' => [],
     ],
 
     /*
