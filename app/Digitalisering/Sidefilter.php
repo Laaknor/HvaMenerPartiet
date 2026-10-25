@@ -15,6 +15,14 @@ class Sidefilter
     /** Sider med kolofon eller kontaktinformasjon kan ha litt mer tekst. */
     private const MAKS_ORD_KOLOFON = 200;
 
+    /**
+     * Linjer med minst så mange ord regnes som brødtekst. Et omslag har korte
+     * linjer; en kort siste side med noen hele linjer er resten av et kapittel.
+     */
+    private const ORD_BRODTEKSTLINJE = 8;
+
+    private const MIN_BRODTEKSTLINJER = 3;
+
     /** Så mange sider i hver ende undersøkes for omslag. */
     private const OMSLAGSSIDER = 2;
 
@@ -96,13 +104,20 @@ class Sidefilter
     private function erOmslag(array $linjer): bool
     {
         $ord = array_sum(array_map(fn (Linje $l) => $l->antallOrd(), $linjer));
-        if ($ord <= self::MAKS_ORD_OMSLAG) {
+        $kolofon = count(array_filter($linjer, fn (Linje $l) => preg_match(self::KOLOFON, $l->tekst) === 1));
+        if ($ord <= self::MAKS_ORD_KOLOFON && $kolofon >= 2) {
             return true;
         }
 
-        $kolofon = count(array_filter($linjer, fn (Linje $l) => preg_match(self::KOLOFON, $l->tekst) === 1));
+        return $ord <= self::MAKS_ORD_OMSLAG && ! $this->harBrodtekst($linjer);
+    }
 
-        return $ord <= self::MAKS_ORD_KOLOFON && $kolofon >= 2;
+    /** @param list<Linje> $linjer */
+    private function harBrodtekst(array $linjer): bool
+    {
+        $lange = count(array_filter($linjer, fn (Linje $l) => $l->antallOrd() >= self::ORD_BRODTEKSTLINJE));
+
+        return $lange >= self::MIN_BRODTEKSTLINJER;
     }
 
     /**

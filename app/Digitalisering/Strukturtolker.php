@@ -21,6 +21,9 @@ class Strukturtolker
     /** Andel av sidehøyden øverst og nederst der topptekst og bunntekst står. */
     private const MARG_TOPP = 0.08;
 
+    /** Så mange tall på rad på én side regnes som linjenummerering. */
+    private const MIN_LINJENUMRE = 5;
+
     private const MARG_BUNN = 0.92;
 
     private const PUNKTMERKE = '/^([•●▪■◦‣∙·–—\-\*✓□➢►▶\x{F0B7}\x{F0A7}\x{F076}\x{F0D8}\x{F0FC}])\s*(.*)$/u';
@@ -38,6 +41,7 @@ class Strukturtolker
     /** @param list<Linje> $linjer */
     public function tolk(array $linjer, int $antallSider): Dokument
     {
+        $linjer = $this->fjernLinjenumre($linjer);
         $linjer = $this->fjernToppOgBunntekst($linjer, $antallSider);
         $utelatt = $this->sidefilter->utelatteSider($linjer);
         $linjer = array_values(array_filter($linjer, fn (Linje $l) => ! $this->sidefilter->erPrikklinje($l->tekst)));
@@ -270,6 +274,41 @@ class Strukturtolker
         $deler = array_map(fn ($d) => Tekstrens::fjernSidehenvisninger($d), $deler);
 
         return trim(implode("\n", array_filter($deler, fn ($d) => $d !== '' && $d !== '•')));
+    }
+
+    /**
+     * Fjerner linjenummerering i margen, som i FrPs program (1, 2, 3 … på hver
+     * side). Ellers ser sidene ut som en innholdsfortegnelse med sidetall, og
+     * tallene havner i teksten.
+     *
+     * @param  list<Linje>  $linjer
+     * @return list<Linje>
+     */
+    private function fjernLinjenumre(array $linjer): array
+    {
+        $tall = [];
+        foreach ($linjer as $i => $l) {
+            if (preg_match('/^\d{1,3}$/u', Tekstrens::normaliser($l->tekst))) {
+                $tall[$l->side][$i] = (int) Tekstrens::normaliser($l->tekst);
+            }
+        }
+
+        $fjern = [];
+        foreach ($tall as $paSiden) {
+            if (count($paSiden) < self::MIN_LINJENUMRE) {
+                continue;
+            }
+            $verdier = array_values($paSiden);
+            $paFolge = 0;
+            for ($i = 1; $i < count($verdier); $i++) {
+                $verdier[$i] === $verdier[$i - 1] + 1 && $paFolge++;
+            }
+            if ($paFolge >= 0.8 * (count($verdier) - 1)) {
+                $fjern += $paSiden;
+            }
+        }
+
+        return $fjern === [] ? $linjer : array_values(array_filter($linjer, fn ($i) => ! isset($fjern[$i]), ARRAY_FILTER_USE_KEY));
     }
 
     /**
