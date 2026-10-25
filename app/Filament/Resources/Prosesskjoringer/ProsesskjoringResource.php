@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Prosesskjoringer;
 use App\Enums\Kjoringsstatus;
 use App\Enums\Prosessteg;
 use App\Enums\Utlosning;
+use App\Filament\Handlinger\MerkSomFeil;
 use App\Filament\Resources\Prosesskjoringer\Pages\ListProsesskjoringer;
 use App\Flyt\Prosessflyt;
 use App\Models\Prosesskjoring;
@@ -86,6 +87,7 @@ class ProsesskjoringResource extends Resource
                         app(Prosessflyt::class)->provIgjen($record, auth()->user());
                         Notification::make()->title('Lagt i kø på nytt')->success()->send();
                     }),
+                MerkSomFeil::make(),
             ]);
     }
 

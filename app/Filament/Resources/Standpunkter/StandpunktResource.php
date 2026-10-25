@@ -6,6 +6,7 @@ use App\Enums\Prosessteg;
 use App\Enums\Sikkerhet;
 use App\Enums\Standpunktstatus;
 use App\Enums\Standpunktverdi;
+use App\Filament\Handlinger\MerkSomFeil;
 use App\Filament\Resources\Standpunkter\Pages\ListStandpunkter;
 use App\Filament\Resources\Standpunkter\Pages\VisStandpunkt;
 use App\Flyt\Prosessflyt;
@@ -174,6 +175,7 @@ class StandpunktResource extends Resource
                             app(Prosessflyt::class)->start(Prosessteg::Klassifisering, $record->program, $record->tema, $record->kildetype, bruker: auth()->user());
                             Notification::make()->title('Lagt i kø')->success()->send();
                         }),
+                    MerkSomFeil::make(),
                 ]),
             ])
             ->toolbarActions([

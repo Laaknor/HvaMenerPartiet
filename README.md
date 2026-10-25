@@ -78,6 +78,21 @@ Forsiden i admin (`/admin`) viser hvor programmene står, hva som kjører nå og
 
 Hver jobb får en rad under «Kjøringer», med status, varighet og feilmelding. En kjøring som har feilet, startes ikke automatisk igjen før noe er endret (ny fil, ny innlesing eller ny godkjenning). Den kan startes på nytt med «Prøv igjen». Alle steg kan også startes for hånd fra programsiden.
 
+## Merk som feil
+
+Standpunkter, kjøringer og tilbakemeldinger har handlingen **«Merk som feil»** i admin. Du skriver hvorfor det er feil, og det tas et øyeblikksbilde av det som trengs for å feilsøke:
+
+- vurderingen (standpunkt, sikkerhet, begrunnelse, merknader, modell og promptversjon)
+- kildesetningene, ordrett
+- prompten, bygget på nytt fra dagens data uten å kalle modellen, med gjenfinningstreffene
+- modellsvarene fra hver kjøring, med feil og råsvar
+- de siste kjøringene for samme mål og eventuelle feilede jobber fra køen (kortet stakkspor)
+- tema, program, analyseinnstillinger og teksten i en tilbakemelding
+
+Alt som er merket, står under **«Feil»**. **«Eksporter feil»** laster ned én JSON-fil med alle åpne feil (valgfritt bare de som ikke er eksportert før, eller også de løste), klar til å lastes opp i feilsøkingen. Feil står åpne til de merkes som løst.
+
+Pakken bygges bare fra feltene som er listet i `app/Feilsoking/Pakkebygger.php`. I tillegg byttes verdier fra miljøet som ser ut som hemmeligheter (navn med `KEY`, `SECRET`, `PASSWORD`, `TOKEN` o.l.), e-postadresser og innlogging i URL-er ut med `[skjult]`, både i pakken, i begrunnelsen og i eksporten.
+
 ## Arbeidsflyt med kommandoer
 
 ```sh
