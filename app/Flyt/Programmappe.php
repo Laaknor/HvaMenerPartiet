@@ -34,12 +34,23 @@ class Programmappe
         return $filer;
     }
 
-    /** PDF-er som ingen programmer peker på. @return list<string> */
+    /**
+     * PDF-er som ingen programmer peker på. Arkivet fra Sikt (filer som slutter
+     * på «-sikt<dok_nr>.pdf») regnes ikke med: de ligger der som kilde og blir
+     * først et program når noen kobler dem til i programlisten.
+     *
+     * @return list<string>
+     */
     public function utenProgram(): array
     {
         $brukt = Program::query()->whereNotNull('kildefil')->pluck('kildefil')->map(fn ($f) => $this->normaliser($f))->flip();
 
-        return array_values(array_filter($this->filer(), fn ($f) => ! $brukt->has($f)));
+        return array_values(array_filter($this->filer(), fn ($f) => ! $brukt->has($f) && ! $this->erSiktArkiv($f)));
+    }
+
+    public function erSiktArkiv(string $sti): bool
+    {
+        return (bool) preg_match('/-sikt\d+\.pdf$/i', $sti);
     }
 
     private function normaliser(string $sti): string
