@@ -8,7 +8,8 @@ namespace App\Digitalisering;
  * Overskrifter gjenkjennes på linjehøyde (som følger skriftstørrelsen) og
  * nummerering. Topptekst, bunntekst og sidetall fjernes, orddeling over
  * linjeskift slås sammen, og avsnitt som fortsetter på neste side eller
- * spalte settes sammen igjen.
+ * spalte settes sammen igjen. Forside, kolofon, innholdsfortegnelse, bakside
+ * og henvisninger til sidetall tas ikke med.
  */
 class Strukturtolker
 {
@@ -32,20 +33,27 @@ class Strukturtolker
     /** @var list<string> høydeklynger som bare brukes til dokumenttittel */
     private array $tittelklynger = [];
 
+    public function __construct(private Sidefilter $sidefilter = new Sidefilter) {}
+
     /** @param list<Linje> $linjer */
     public function tolk(array $linjer, int $antallSider): Dokument
     {
         $linjer = $this->fjernToppOgBunntekst($linjer, $antallSider);
+        $utelatt = $this->sidefilter->utelatteSider($linjer);
+        $linjer = array_values(array_filter($linjer, fn (Linje $l) => ! $this->sidefilter->erPrikklinje($l->tekst)));
+
+        $omslag = array_values(array_filter($linjer, fn (Linje $l) => ($utelatt[$l->side] ?? null) === 'forside'));
+        $linjer = array_values(array_filter($linjer, fn (Linje $l) => ! isset($utelatt[$l->side])));
 
         if ($linjer === []) {
-            return new Dokument(antallSider: $antallSider);
+            return new Dokument(antallSider: $antallSider, utelatteSider: $utelatt);
         }
 
         $this->brodhoyde = $this->finnBrodhoyde($linjer);
         $this->finnOverskriftsnivaer($linjer);
 
-        $dokument = new Dokument(antallSider: $antallSider);
-        $tittel = [];
+        $dokument = new Dokument(antallSider: $antallSider, utelatteSider: $utelatt);
+        $tittel = $this->tittelFraForside($omslag);
 
         /** @var DokumentKapittel|null $kapittel */
         $kapittel = null;
@@ -109,6 +117,27 @@ class Strukturtolker
         $dokument->kapitler = $this->fjernInnholdsfortegnelse($dokument->kapitler);
 
         return $dokument;
+    }
+
+    /**
+     * Tittelen på forsiden er linjene med størst skrift.
+     *
+     * @param  list<Linje>  $linjer
+     * @return list<string>
+     */
+    private function tittelFraForside(array $linjer): array
+    {
+        $kandidater = array_values(array_filter($linjer, fn (Linje $l) => $this->kanVareOverskrift($l)));
+        if ($kandidater === []) {
+            return [];
+        }
+
+        $storst = max(array_map(fn (Linje $l) => (float) $this->klynge($l->hoyde()), $kandidater));
+
+        return array_values(array_map(
+            fn (Linje $l) => $l->tekst,
+            array_filter($kandidater, fn (Linje $l) => (float) $this->klynge($l->hoyde()) === $storst),
+        ));
     }
 
     /**
@@ -238,6 +267,8 @@ class Strukturtolker
             $deler[] = '• '.Tekstrens::normaliser(str_replace("\u{00AD}", '', $punkt['tekst']));
         }
 
+        $deler = array_map(fn ($d) => Tekstrens::fjernSidehenvisninger($d), $deler);
+
         return trim(implode("\n", array_filter($deler, fn ($d) => $d !== '' && $d !== '•')));
     }
 
@@ -363,7 +394,7 @@ class Strukturtolker
     {
         return array_values(array_filter(
             $kapitler,
-            fn (DokumentKapittel $k) => ! preg_match('/^innhold(sfortegnelse)?$/iu', trim($k->tittel)),
+            fn (DokumentKapittel $k) => ! preg_match('/^(innhold(sfortegnelse|sliste)?|innhald(sliste)?)$/iu', trim($k->tittel)),
         ));
     }
 }

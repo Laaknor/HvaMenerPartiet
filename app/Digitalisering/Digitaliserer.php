@@ -37,7 +37,7 @@ class Digitaliserer
                 throw new RuntimeException('Fant ingen tekst i PDF-en. Den kan være skannet uten tekstlag.');
             }
 
-            $merknader = [];
+            $merknader = array_filter([$dokument->utelattBeskrivelse()]);
             if ($program->erKombinert()) {
                 $deler = $this->delmerker->merk($dokument);
                 if ($deler['umerket'] > 0) {

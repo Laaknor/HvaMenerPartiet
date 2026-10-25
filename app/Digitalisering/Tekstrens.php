@@ -53,6 +53,25 @@ final class Tekstrens
         return $forste.' '.$andre;
     }
 
+    /**
+     * Fjerner henvisninger til sidetall i den trykte utgaven, som «(se side 12)»,
+     * «jf. s. 4–5» og «Les mer om dette på side 30.». Sidetallene gir ingen
+     * mening på nettsiden.
+     */
+    public static function fjernSidehenvisninger(string $tekst): string
+    {
+        $side = '(?:sidene|side|s\.)\s*\d{1,3}(?:\s*(?:[-–]|og|til)\s*\d{1,3})?';
+
+        // Hele setninger som bare viser videre: «Les mer om dette på side 30.»
+        $tekst = preg_replace('/(?<=^|[.!?:]\s)\s*(?:les|se) (?:mer|også)\b[^.!?\n]{0,80}?\b'.$side.'\s*[.!]?/iu', '', $tekst);
+        // I parentes: «(se side 12)», «(side 12)», «(jf. s. 4)».
+        $tekst = preg_replace('/\s*\((?:(?:se|jf\.?|jamfør|les mer på)\s+)?(?:også\s+)?'.$side.'\)/iu', '', $tekst);
+        // Uten parentes: «…, se side 12.» og «… (jf. side 4).».
+        $tekst = preg_replace('/,?\s+(?:se|jf\.?|jamfør)\s+(?:også\s+)?'.$side.'(?=[.!?,;:)\s]|$)/iu', '', $tekst);
+
+        return trim(preg_replace('/[ \t]+/u', ' ', $tekst));
+    }
+
     public static function hash(string $tekst): string
     {
         return sha1(self::normaliser($tekst));
