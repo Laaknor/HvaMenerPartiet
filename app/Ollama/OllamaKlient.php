@@ -19,6 +19,7 @@ class OllamaKlient
         private int $kontekstlengde,
         private ?string $embeddingUrl = null,
         private string $embeddingApi = 'ollama',
+        private bool $tenk = false,
     ) {}
 
     public static function fraKonfig(): self
@@ -27,7 +28,7 @@ class OllamaKlient
 
         return new self(
             $k['url'], $k['modell'], $k['embeddingmodell'], $k['tidsavbrudd'], $k['kontekstlengde'],
-            $k['embedding_url'] ?? null, $k['embedding_api'] ?? 'ollama',
+            $k['embedding_url'] ?? null, $k['embedding_api'] ?? 'ollama', (bool) ($k['tenk'] ?? false),
         );
     }
 
@@ -118,6 +119,7 @@ class OllamaKlient
             'model' => $this->modell,
             'messages' => $meldinger,
             'stream' => false,
+            'think' => $this->tenk,
             'format' => $skjema,
             'options' => array_merge([
                 'temperature' => 0,
@@ -130,10 +132,16 @@ class OllamaKlient
         }
 
         $innhold = (string) $svar->json('message.content');
-        $data = json_decode($innhold, true);
+        $data = self::lesJson($innhold);
 
         if (! is_array($data)) {
-            throw new UgyldigSvar('Ollama svarte ikke med gyldig JSON: '.mb_substr($innhold, 0, 500));
+            $tenkning = (string) $svar->json('message.thinking');
+            throw new UgyldigSvar(
+                ($innhold === '' && $tenkning !== ''
+                    ? 'Modellen brukte svaret på tenking og ga tomt innhold. Sett OLLAMA_TENK=false.'
+                    : 'Ollama svarte ikke med gyldig JSON.')
+                .' Svar: '.mb_substr($innhold, 0, 500)
+            );
         }
 
         return $data;
@@ -164,6 +172,32 @@ class OllamaKlient
         }
 
         throw new RuntimeException("Embedding feilet på {$server} ({$status}): ".mb_substr($kropp, 0, 500));
+    }
+
+    /**
+     * Leser JSON fra modellens svar. Tåler tenkeblokker («<think>…</think>»),
+     * kodeblokker og tekst rundt selve objektet, som mindre modeller ofte gir.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function lesJson(string $innhold): ?array
+    {
+        $data = json_decode($innhold, true);
+        if (is_array($data)) {
+            return $data;
+        }
+
+        $renset = preg_replace('/<think>.*?<\/think>/su', '', $innhold);
+        $renset = preg_replace('/^```(?:json)?\s*|\s*```$/mu', '', trim($renset));
+        $start = strpos($renset, '{');
+        $slutt = strrpos($renset, '}');
+        if ($start === false || $slutt === false || $slutt < $start) {
+            return null;
+        }
+
+        $data = json_decode(substr($renset, $start, $slutt - $start + 1), true);
+
+        return is_array($data) ? $data : null;
     }
 
     private function http(?string $url = null): PendingRequest

@@ -19,6 +19,9 @@ return [
         'tidsavbrudd' => (int) env('OLLAMA_TIDSAVBRUDD', 600),
         'samtidige' => (int) env('OLLAMA_SAMTIDIGE', 2),
         'kontekstlengde' => (int) env('OLLAMA_KONTEKSTLENGDE', 16384),
+        // Tenkemodus (qwen3, deepseek-r1 o.l.) slås av: med JSON-skjema gir den
+        // ofte tomt eller ødelagt svar, og den gjør klassifiseringen mye tregere.
+        'tenk' => filter_var(env('OLLAMA_TENK', false), FILTER_VALIDATE_BOOL),
     ],
 
     'digitalisering' => [

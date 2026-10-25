@@ -18,6 +18,7 @@ use App\Enums\Standpunktverdi;
 use App\Models\Parti;
 use App\Models\Program;
 use App\Models\Tema;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -104,7 +105,7 @@ class KlassifiseringTest extends TestCase
         app(Klassifiserer::class)->klassifiser($this->nato, $this->program, Kildetype::Arbeidsprogram);
 
         $melding = $this->ollama->sisteBrukermelding();
-        $this->assertStringContainsString('[tp-ap2025-k1-a1-s1] Norge skal være et aktivt medlem av NATO.', $melding);
+        $this->assertStringContainsString('[S1] Norge skal være et aktivt medlem av NATO.', $melding);
         $this->assertStringContainsString('Påstand: «Norge bør være medlem av NATO.»', $melding);
         $this->assertStringNotContainsString('Testpartiet', $melding);
         $this->assertStringContainsString('Partiet vil:', $melding);
@@ -138,7 +139,8 @@ class KlassifiseringTest extends TestCase
 
     public function test_standpunkt_uten_gyldige_kilder_godtas_ikke(): void
     {
-        $this->ollama->chatsvar = [$this->svar('for', []), $this->svar('for', ['finnes-ikke'])];
+        // To kjøringer, hver med ett nytt forsøk.
+        $this->ollama->chatsvar = [$this->svar('for', []), $this->svar('for', []), $this->svar('for', ['finnes-ikke']), $this->svar('for', ['S99'])];
 
         $s = app(Klassifiserer::class)->klassifiser($this->nato, $this->program, Kildetype::Arbeidsprogram);
 
@@ -230,5 +232,57 @@ class KlassifiseringTest extends TestCase
 
         $this->expectException(ConnectionException::class);
         app(Klassifiserer::class)->klassifiser($this->nato, $this->program, Kildetype::Arbeidsprogram);
+    }
+
+    public function test_korte_id_er_i_ulike_former_godtas(): void
+    {
+        $this->ollama->chatsvar = [$this->svar('for', ['S1', '[S2]']), $this->svar('for', ['s1', 2, 'tp-ap2025-k1-a1-s2'])];
+
+        $s = app(Klassifiserer::class)->klassifiser($this->nato, $this->program, Kildetype::Arbeidsprogram);
+
+        $this->assertSame(Standpunktverdi::For, $s->verdi);
+        $this->assertFalse($s->uenighet);
+        $this->assertSame(['tp-ap2025-k1-a1-s1', 'tp-ap2025-k1-a1-s2'], $s->kildesetninger->pluck('nokkel')->all());
+    }
+
+    public function test_svar_uten_kilder_far_ett_nytt_forsok(): void
+    {
+        $this->ollama->chatsvar = [
+            $this->svar('for', []), $this->svar('for', ['S1']),
+            $this->svar('for', ['S1']),
+        ];
+
+        $s = app(Klassifiserer::class)->klassifiser($this->nato, $this->program, Kildetype::Arbeidsprogram);
+
+        $this->assertSame(Standpunktverdi::For, $s->verdi);
+        $this->assertFalse($s->uenighet);
+        $this->assertTrue($s->kjoringer[0]['nytt_forsok']);
+        $this->assertCount(3, $this->ollama->chatkall);
+        $this->assertStringContainsString('mangler gyldige ID-er', end($this->ollama->chatkall[1]['messages'])['content']);
+    }
+
+    public function test_tenkemodus_slas_av_og_json_med_tenkeblokk_leses(): void
+    {
+        $this->ollama->chatsvar = [
+            "<think>Teksten sier at NATO er sikkerhetsgarantien.</think>\n```json\n".json_encode($this->svar('for', ['S1']))."\n```",
+            $this->svar('for', ['S1']),
+        ];
+
+        $s = app(Klassifiserer::class)->klassifiser($this->nato, $this->program, Kildetype::Arbeidsprogram);
+
+        $this->assertSame(Standpunktverdi::For, $s->verdi);
+        $this->assertFalse($this->ollama->chatkall[0]['think']);
+    }
+
+    public function test_adminsiden_viser_kjoringene_med_feil(): void
+    {
+        $this->ollama->chatsvar = [$this->svar('for', []), $this->svar('for', []), $this->svar('mot', ['S1']), $this->svar('mot', ['S1'])];
+        $s = app(Klassifiserer::class)->klassifiser($this->nato, $this->program, Kildetype::Arbeidsprogram);
+
+        $this->actingAs(User::factory()->create(['er_admin' => true]))
+            ->get("/admin/standpunkter/{$s->id}")
+            ->assertOk()
+            ->assertSee('Ingen gyldige kildesetninger')
+            ->assertSee('Råsvar');
     }
 }
