@@ -11,10 +11,12 @@ use App\Digitalisering\DokumentKapittel;
 use App\Digitalisering\ProgramLagrer;
 use App\Enums\Digitaliseringsstatus;
 use App\Enums\Kildetype;
+use App\Enums\Standpunktstatus;
 use App\Feilsoking\Feilmerker;
 use App\Feilsoking\Sensurerer;
 use App\Filament\Resources\Feilmerkinger\Pages\ListFeilmerkinger;
 use App\Filament\Resources\Standpunkter\Pages\ListStandpunkter;
+use App\Filament\Resources\Standpunkter\Pages\VisStandpunkt;
 use App\Models\Feilmerking;
 use App\Models\Parti;
 use App\Models\Program;
@@ -164,5 +166,30 @@ class FeilmerkingTest extends TestCase
 
         $this->get('/admin/feil')->assertOk()->assertSee('Feil kilde')->assertSee('Eksporter feil');
         $this->get('/admin/standpunkter/'.$this->standpunkt->id)->assertOk()->assertSee('Merk som feil');
+    }
+
+    public function test_standpunktsiden_har_godkjenn_korriger_og_avvis(): void
+    {
+        $admin = User::factory()->create(['er_admin' => true]);
+        $this->actingAs($admin);
+
+        $this->get('/admin/standpunkter/'.$this->standpunkt->id)
+            ->assertOk()->assertSee('Godkjenn')->assertSee('Korriger standpunkt')->assertSee('Avvis');
+
+        Livewire::test(VisStandpunkt::class, ['record' => $this->standpunkt->id])
+            ->callAction('godkjenn')
+            ->assertHasNoActionErrors()
+            ->assertActionHidden('godkjenn');
+
+        $this->standpunkt->refresh();
+        $this->assertSame(Standpunktstatus::Godkjent, $this->standpunkt->status);
+        $this->assertSame($admin->id, $this->standpunkt->godkjent_av);
+
+        Livewire::test(VisStandpunkt::class, ['record' => $this->standpunkt->id])
+            ->callAction('korriger', ['verdi' => 'delvis_for'])
+            ->assertHasNoActionErrors();
+
+        $this->assertSame(Standpunktstatus::Korrigert, $this->standpunkt->refresh()->status);
+        $this->assertSame('delvis_for', $this->standpunkt->verdi->value);
     }
 }

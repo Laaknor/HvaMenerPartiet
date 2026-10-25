@@ -148,33 +148,12 @@ class StandpunktResource extends Resource
                 TernaryFilter::make('uenighet'),
             ])
             ->recordActions([
-                Action::make('godkjenn')
-                    ->label('Godkjenn')
-                    ->icon(Heroicon::OutlinedCheck)
-                    ->color('success')
-                    ->visible(fn (Standpunkt $record) => ! $record->status->erGodkjent())
-                    ->action(fn (Standpunkt $record) => self::sett($record, Standpunktstatus::Godkjent)),
+                self::godkjenn(),
                 ActionGroup::make([
                     ViewAction::make(),
-                    Action::make('korriger')
-                        ->label('Korriger standpunkt')
-                        ->icon(Heroicon::OutlinedPencilSquare)
-                        ->schema([Select::make('verdi')->label('Riktig standpunkt')->options(Standpunktverdi::class)->required()])
-                        ->fillForm(fn (Standpunkt $record) => ['verdi' => $record->verdi])
-                        ->action(fn (Standpunkt $record, array $data) => self::sett($record, Standpunktstatus::Korrigert, $data['verdi'])),
-                    Action::make('avvis')
-                        ->label('Avvis')
-                        ->icon(Heroicon::OutlinedXMark)
-                        ->color('danger')
-                        ->visible(fn (Standpunkt $record) => $record->status !== Standpunktstatus::Avvist)
-                        ->action(fn (Standpunkt $record) => self::sett($record, Standpunktstatus::Avvist)),
-                    Action::make('klassifiserPaNytt')
-                        ->label('Klassifiser på nytt')
-                        ->icon(Heroicon::OutlinedArrowPath)
-                        ->action(function (Standpunkt $record) {
-                            app(Prosessflyt::class)->start(Prosessteg::Klassifisering, $record->program, $record->tema, $record->kildetype, bruker: auth()->user());
-                            Notification::make()->title('Lagt i kø')->success()->send();
-                        }),
+                    self::korriger(),
+                    self::avvis(),
+                    self::klassifiserPaNytt(),
                     MerkSomFeil::make(),
                 ]),
             ])
@@ -186,6 +165,56 @@ class StandpunktResource extends Resource
                     ->action(fn (Collection $records) => $records->each(fn (Standpunkt $s) => self::sett($s, Standpunktstatus::Godkjent)))
                     ->deselectRecordsAfterCompletion(),
             ]);
+    }
+
+    public static function godkjenn(): Action
+    {
+        return Action::make('godkjenn')
+            ->label('Godkjenn')
+            ->icon(Heroicon::OutlinedCheck)
+            ->color('success')
+            ->visible(fn (Standpunkt $record) => ! $record->status->erGodkjent())
+            ->action(function (Standpunkt $record) {
+                self::sett($record, Standpunktstatus::Godkjent);
+                Notification::make()->title('Godkjent')->success()->send();
+            });
+    }
+
+    public static function korriger(): Action
+    {
+        return Action::make('korriger')
+            ->label('Korriger standpunkt')
+            ->icon(Heroicon::OutlinedPencilSquare)
+            ->schema([Select::make('verdi')->label('Riktig standpunkt')->options(Standpunktverdi::class)->required()])
+            ->fillForm(fn (Standpunkt $record) => ['verdi' => $record->verdi])
+            ->action(function (Standpunkt $record, array $data) {
+                self::sett($record, Standpunktstatus::Korrigert, $data['verdi']);
+                Notification::make()->title('Korrigert og godkjent')->success()->send();
+            });
+    }
+
+    public static function avvis(): Action
+    {
+        return Action::make('avvis')
+            ->label('Avvis')
+            ->icon(Heroicon::OutlinedXMark)
+            ->color('danger')
+            ->visible(fn (Standpunkt $record) => $record->status !== Standpunktstatus::Avvist)
+            ->action(function (Standpunkt $record) {
+                self::sett($record, Standpunktstatus::Avvist);
+                Notification::make()->title('Avvist')->success()->send();
+            });
+    }
+
+    public static function klassifiserPaNytt(): Action
+    {
+        return Action::make('klassifiserPaNytt')
+            ->label('Klassifiser på nytt')
+            ->icon(Heroicon::OutlinedArrowPath)
+            ->action(function (Standpunkt $record) {
+                app(Prosessflyt::class)->start(Prosessteg::Klassifisering, $record->program, $record->tema, $record->kildetype, bruker: auth()->user());
+                Notification::make()->title('Lagt i kø')->success()->send();
+            });
     }
 
     public static function sett(Standpunkt $standpunkt, Standpunktstatus $status, Standpunktverdi|string|null $verdi = null): void
