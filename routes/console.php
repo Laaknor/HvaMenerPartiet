@@ -1,8 +1,9 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Prosessflyten: start neste steg når det er ledig kapasitet. Jobbene ber
+// også om ny planlegging når de blir ferdige, så dette er et sikkerhetsnett.
+Schedule::command('flyt:planlegg')->everyMinute()->withoutOverlapping();
+
+Schedule::command('horizon:snapshot')->everyFiveMinutes();

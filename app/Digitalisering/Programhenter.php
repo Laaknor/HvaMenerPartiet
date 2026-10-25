@@ -9,12 +9,31 @@ use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
- * Laster ned programfilen og lagrer den med URL, tidspunkt og SHA-256.
- * Originalfilen beholdes, slik at hvert utdrag kan spores tilbake.
+ * Leser inn programfilen fra docs/Partiprogram (eller laster den ned) og
+ * lagrer en kopi med tidspunkt og SHA-256. Hver versjon som er digitalisert
+ * beholdes, slik at hvert utdrag kan spores tilbake.
  */
 class Programhenter
 {
-    /** @return bool om filen er ny eller endret siden forrige nedlasting */
+    /**
+     * Leser inn kildefilen fra docs/Partiprogram. Dette er den vanlige veien.
+     *
+     * @return bool om filen er ny eller endret siden forrige innlesing
+     */
+    public function lesInn(Program $program): bool
+    {
+        if (! $program->kildefil) {
+            throw new RuntimeException("Programmet {$program->nokkel} har ingen kildefil i docs/Partiprogram.");
+        }
+
+        if (! $program->kildefilFinnes()) {
+            throw new RuntimeException("Finner ikke docs/Partiprogram/{$program->kildefil}.");
+        }
+
+        return $this->importerFil($program, $program->kildefilSti());
+    }
+
+    /** Laster ned fra kilde-URL-en. Bare til bruk når filen ikke ligger i docs/. */
     public function hent(Program $program): bool
     {
         if (! $program->kilde_url) {

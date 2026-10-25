@@ -16,7 +16,11 @@ return [
     ],
 
     'digitalisering' => [
-        // Programfilene lagres på denne disken, under mappen «programmer».
+        // Kilden for alle partiprogrammer: PDF-ene i docs/Partiprogram i repoet.
+        // Programmene peker hit med «kildefil».
+        'programmappe' => env('PROGRAMMAPPE', base_path('docs/Partiprogram')),
+        // Ved innlesing kopieres filen hit, under mappen «programmer», med
+        // hash i navnet, slik at hver versjon som er digitalisert beholdes.
         'disk' => env('PROGRAM_DISK', 'local'),
         'pdftotext' => env('PDFTOTEXT_STI', 'pdftotext'),
     ],
@@ -33,5 +37,20 @@ return [
         'kjoringer' => (int) env('ANALYSE_KJORINGER', 2),
         // Maks antall setninger i utdraget.
         'utdrag_setninger' => 3,
+    ],
+
+    /*
+    | Prosessflyten: planleggeren (flyt:planlegg, hvert minutt og hver gang en
+    | jobb er ferdig) starter neste steg for programmer og temaer når det er
+    | ledig kapasitet. Kapasiteten bør være lik antall prosesser i Horizon.
+    */
+    'flyt' => [
+        'automatisk' => (bool) env('FLYT_AUTOMATISK', true),
+        'kapasitet' => [
+            'import' => (int) env('FLYT_KAPASITET_IMPORT', 2),
+            'ollama' => (int) env('OLLAMA_SAMTIDIGE', 2),
+        ],
+        // En jobb som har stått som «kjører» lenger enn dette, regnes som avbrutt.
+        'maks_kjoretid' => (int) env('FLYT_MAKS_KJORETID', 1200),
     ],
 ];

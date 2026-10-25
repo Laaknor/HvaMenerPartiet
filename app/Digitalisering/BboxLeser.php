@@ -33,6 +33,9 @@ class BboxLeser
     /** @return array{sider: int, linjer: list<Linje>} */
     public function tolk(string $xhtml): array
     {
+        // Noen PDF-er (for eksempel MDGs) har kontrolltegn i teksten, som ikke er lov i XML.
+        $xhtml = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', $xhtml);
+
         $dom = new DOMDocument;
         $forrige = libxml_use_internal_errors(true);
         $ok = $dom->loadXML($xhtml, LIBXML_NONET | LIBXML_COMPACT | LIBXML_PARSEHUGE);

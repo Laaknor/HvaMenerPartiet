@@ -2,7 +2,10 @@
 
 namespace App\Enums;
 
-enum Digitaliseringsstatus: string
+use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
+
+enum Digitaliseringsstatus: string implements HasColor, HasLabel
 {
     case Registrert = 'registrert';
     case LastetNed = 'lastet_ned';
@@ -18,6 +21,22 @@ enum Digitaliseringsstatus: string
             self::Digitalisert => 'Digitalisert, venter på kontroll',
             self::Godkjent => 'Godkjent',
             self::Feilet => 'Feilet',
+        };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->etikett();
+    }
+
+    public function getColor(): string
+    {
+        return match ($this) {
+            self::Registrert => 'gray',
+            self::LastetNed => 'info',
+            self::Digitalisert => 'warning',
+            self::Godkjent => 'success',
+            self::Feilet => 'danger',
         };
     }
 }
