@@ -105,4 +105,43 @@ class SidefilterTest extends TestCase
         $this->assertStringNotContainsString('.....', $tekst);
         $this->assertSame('Utelatt side 1 (forside), 2 (innholdsfortegnelse), 7 (bakside).', $dokument->utelattBeskrivelse());
     }
+
+    public function test_kort_siste_side_med_brodtekst_er_ikke_bakside(): void
+    {
+        $this->linje(1, 'Testpartiets program 2025–2029', 30);
+        for ($side = 2; $side <= 5; $side++) {
+            $this->innholdsside($side);
+        }
+        // Resten av siste kapittel havner alene på en side med under 60 ord.
+        $this->linje(6, 'Partiet ønsker på sikt å delta i de demokratiske institusjonene i EU,');
+        $this->linje(6, 'der det lages gode løsninger for fiskeri og landbruk og tas en separat');
+        $this->linje(6, 'vurdering av eventuell inntreden i eurosonen etter en folkeavstemning.');
+        $this->linje(6, '30');
+        $this->linje(7, 'MER');
+        $this->linje(7, 'FRIHET');
+
+        $this->assertSame([1 => 'forside', 7 => 'bakside'], (new Sidefilter)->utelatteSider($this->linjer));
+    }
+
+    public function test_linjenummerering_i_margen_er_ikke_innholdsfortegnelse(): void
+    {
+        $this->linje(1, 'Testpartiets program 2025–2029', 30);
+        for ($side = 2; $side <= 6; $side++) {
+            $this->linje($side, 'Kapittel '.$side, 20);
+            for ($i = 0; $i < 4; $i++) {
+                $this->linje($side, self::BRODTEKST);
+            }
+            // Linjenumre som egne linjer i margen, som i FrPs program.
+            for ($nr = 1; $nr <= 12; $nr++) {
+                $this->linje($side, (string) $nr);
+            }
+        }
+
+        $dokument = (new Strukturtolker)->tolk($this->linjer, 6);
+
+        $this->assertSame([1 => 'forside'], $dokument->utelatteSider);
+        $this->assertSame(['Kapittel 2', 'Kapittel 3', 'Kapittel 4', 'Kapittel 5', 'Kapittel 6'], array_map(fn ($k) => $k->tittel, $dokument->kapitler));
+        $tekst = implode("\n", array_map(fn ($k) => implode("\n", array_map(fn ($a) => $a->tekst, $k->avsnitt)), $dokument->kapitler));
+        $this->assertStringNotContainsString(' 7 8 9', $tekst);
+    }
 }
