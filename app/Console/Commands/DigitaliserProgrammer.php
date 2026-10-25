@@ -3,7 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Digitalisering\Digitaliserer;
-use App\Jobs\DigitaliserProgram;
+use App\Enums\Prosessteg;
+use App\Enums\Utlosning;
+use App\Flyt\Prosessflyt;
 use Illuminate\Console\Command;
 use Throwable;
 
@@ -18,7 +20,7 @@ class DigitaliserProgrammer extends Command
 
     protected $description = 'Gjør programfilene om til kapitler, avsnitt og setninger med faste ID-er';
 
-    public function handle(Digitaliserer $digitaliserer): int
+    public function handle(Digitaliserer $digitaliserer, Prosessflyt $flyt): int
     {
         $feil = 0;
 
@@ -30,7 +32,7 @@ class DigitaliserProgrammer extends Command
             }
 
             if (! $this->option('synkront')) {
-                DigitaliserProgram::dispatch($program);
+                $flyt->start(Prosessteg::Digitalisering, $program, utlostAv: Utlosning::Kommando);
                 $this->line("Lagt i kø: {$program->nokkel}");
 
                 continue;

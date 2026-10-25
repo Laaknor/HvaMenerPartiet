@@ -2,12 +2,15 @@
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
+
 /**
  * Hva et standpunkt bygger på: planen for perioden eller det langsiktige synet.
  * For kombinerte dokumenter tilsvarer handlingsdelen arbeidsprogram og
  * prinsippdelen prinsipprogram.
  */
-enum Kildetype: string
+enum Kildetype: string implements HasColor, HasLabel
 {
     case Arbeidsprogram = 'arbeidsprogram';
     case Prinsipprogram = 'prinsipprogram';
@@ -27,5 +30,15 @@ enum Kildetype: string
             self::Arbeidsprogram => Programdel::Handling,
             self::Prinsipprogram => Programdel::Prinsipp,
         };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->etikett();
+    }
+
+    public function getColor(): string
+    {
+        return 'gray';
     }
 }

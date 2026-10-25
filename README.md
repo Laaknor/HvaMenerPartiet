@@ -6,7 +6,7 @@ All analyse skjer på forhånd i bakgrunnsjobber. Nettsiden gjør aldri LLM-kall
 
 ## Status: fase 1, prototype
 
-Denne versjonen dekker første trinn i planen: programmene lastes ned, digitaliseres og klassifiseres for et lite sett temaer med Artisan-kommandoer, og resultatet samles i en rapport for manuell sammenligning. Nettside og admin i Filament kommer i senere trinn.
+Denne versjonen dekker første trinn i planen: programmene leses inn fra `docs/Partiprogram`, digitaliseres og klassifiseres for et lite sett temaer, og resultatet samles i en rapport for manuell sammenligning. Hele flyten kan styres og følges i admin (`/admin`). Den offentlige nettsiden kommer i et senere trinn.
 
 ## Teknologi
 
@@ -17,7 +17,7 @@ Denne versjonen dekker første trinn i planen: programmene lastes ned, digitalis
 | Kø og cache | Redis med Laravel Horizon |
 | PDF til tekst | poppler `pdftotext -bbox-layout` |
 | LLM og embeddings | Ollama, med JSON-skjema for strukturerte svar |
-| Admin | FilamentPHP (installert, sidene kommer i fase 3) |
+| Admin | FilamentPHP: prosessflyt, programmer, temaer, standpunkter og kjøringer |
 
 ## Kom i gang
 
@@ -34,6 +34,7 @@ docker compose exec ollama ollama pull gemma3:27b
 
 php artisan migrate --seed                 # partier, programmer og temaer
 php artisan horizon                        # i et eget vindu
+php artisan schedule:work                  # i et eget vindu (i drift: cron med schedule:run hvert minutt)
 ```
 
 Ollama bør helst kjøre på en egen server med GPU. Sett `OLLAMA_URL` og `OLLAMA_SAMTIDIGE` (antall samtidige jobber serveren tåler) i `.env`. Modellen for klassifisering velges i `OLLAMA_MODELL` og skal velges ved måling mot testsettet i fase 2.
@@ -48,12 +49,34 @@ php artisan bruker:admin deg@eksempel.no
 php artisan bruker:admin deg@eksempel.no --fjern   # fjerner tilgangen
 ```
 
-## Arbeidsflyt for prototypen
+## Partiprogrammene ligger i docs/
+
+Alle partiprogram-PDF-ene ligger i `docs/Partiprogram/` i repoet, og det er der systemet leser dem. Hvert program peker på sin fil med `kildefil` i `database/data/programmer.php` (stien er relativ til `docs/Partiprogram`). Et nytt eller endret program legges inn ved å committe PDF-en dit og enten oppdatere `programmer.php` og kjøre `php artisan db:seed --class=ProgramSeeder`, eller velge filen på programmet i admin.
+
+Ved innlesing kopieres filen til lagringsdisken med SHA-256 i navnet, så hver versjon som er digitalisert beholdes. Endres filen i `docs/`, leses den inn og digitaliseres på nytt av seg selv, og strukturen må gjennomgås igjen.
+
+Disse mangler fortsatt PDF i `docs/`: prinsipprogrammene til Høyre, Rødt, MDG, KrF og Venstre.
+
+## Prosessflyten i admin
+
+Forsiden i admin (`/admin`) viser hvor programmene står, hva som kjører nå og hva som har feilet. Stegene er:
+
+1. **Innlesing** fra `docs/Partiprogram` (kø `import`)
+2. **Digitalisering og oppsplitting** i kapitler, avsnitt og setninger, og i prinsipp- og handlingsdel for kombinerte dokumenter (kø `import`)
+3. **Gjennomgang** av strukturen. Dette er manuelt: åpne programmet, sjekk kapitler og avsnitt mot PDF-en, merk prinsipp- eller handlingsdel om det trengs, og trykk «Godkjenn strukturen»
+4. **Embeddings** (kø `embeddings`)
+5. **Klassifisering** for hvert godkjent tema mot hvert godkjent program (kø `klassifisering`)
+6. **Gjennomgang av standpunkter** under «Standpunkter», med uenighet og lav sikkerhet først
+
+**Automatisk drift.** Planleggeren (`flyt:planlegg`) starter neste steg av seg selv når det er ledig kapasitet. Den kjøres hvert minutt av Laravel-planleggeren og hver gang en jobb blir ferdig. Kapasiteten er `FLYT_KAPASITET_IMPORT` jobber for innlesing og digitalisering og `OLLAMA_SAMTIDIGE` for embeddings og klassifisering, de samme tallene som Horizon bruker. Automatisk drift slås av og på med knappen på forsiden eller `php artisan flyt:planlegg --av` / `--pa`.
+
+Hver jobb får en rad under «Kjøringer», med status, varighet og feilmelding. En kjøring som har feilet, startes ikke automatisk igjen før noe er endret (ny fil, ny innlesing eller ny godkjenning). Den kan startes på nytt med «Prøv igjen». Alle steg kan også startes for hånd fra programsiden.
+
+## Arbeidsflyt med kommandoer
 
 ```sh
-php artisan program:hent --alle --synkront           # last ned PDF-ene
-# eller, for en fil som er lastet ned manuelt:
-php artisan program:importer-fil sv-ap2025 ~/Nedlastinger/sv.pdf
+php artisan program:hent --alle --synkront           # les inn PDF-ene fra docs/Partiprogram
+# --fra-nett laster ned fra partienes nettsider i stedet
 
 php artisan program:digitaliser --alle --synkront    # kapitler, avsnitt, setninger
 php artisan program:status                           # oversikt
@@ -68,7 +91,7 @@ php artisan tema:klassifiser                         # én jobb per tema × prog
 php artisan prototype:rapport                        # Markdown i storage/app/private/rapporter
 ```
 
-Uten `--synkront` legges arbeidet i køen og kjøres av Horizon. Køene er `import`, `embeddings` og `klassifisering`.
+Uten `--synkront` legges arbeidet i køen og kjøres av Horizon, og jobbene vises under «Kjøringer» i admin. Køene er `import`, `embeddings` og `klassifisering`. Kommandoene trengs ikke når automatisk drift er på, bortsett fra `program:godkjenn` om du ikke godkjenner i admin.
 
 Rapporten viser standpunkt per parti slik partikortet ville vist det, med utdrag, kildelenke, modellens begrunnelse og en tom kolonne for manuell vurdering. Kriteriet for å gå videre til fase 2 er at resultatene stemmer med den manuelle vurderingen.
 

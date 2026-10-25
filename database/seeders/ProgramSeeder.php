@@ -16,21 +16,25 @@ class ProgramSeeder extends Seeder
             $type = Programtype::from($data['type']);
             $nokler = Program::lagNokler($parti, $type, $data['vedtatt_ar']);
 
-            Program::query()->updateOrCreate(
-                ['nokkel' => $nokler['nokkel']],
-                [
-                    'parti_id' => $parti->id,
-                    'type' => $type,
-                    'slug' => $nokler['slug'],
-                    'tittel' => $data['tittel'],
-                    'periode' => $data['periode'] ?? null,
-                    'vedtatt_ar' => $data['vedtatt_ar'],
-                    'gjeldende' => true,
-                    'sprak' => 'nb',
-                    'kilde_url' => $data['kilde_url'],
-                    'kilde_side' => $data['kilde_side'] ?? null,
-                ],
-            );
+            $felter = [
+                'parti_id' => $parti->id,
+                'type' => $type,
+                'slug' => $nokler['slug'],
+                'tittel' => $data['tittel'],
+                'periode' => $data['periode'] ?? null,
+                'vedtatt_ar' => $data['vedtatt_ar'],
+                'gjeldende' => true,
+                'sprak' => 'nb',
+                'kilde_url' => $data['kilde_url'],
+                'kilde_side' => $data['kilde_side'] ?? null,
+            ];
+
+            // En kildefil som er valgt i admin, overskrives ikke med null.
+            if (($data['kildefil'] ?? null) !== null) {
+                $felter['kildefil'] = $data['kildefil'];
+            }
+
+            Program::query()->updateOrCreate(['nokkel' => $nokler['nokkel']], $felter);
         }
     }
 }

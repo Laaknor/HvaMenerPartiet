@@ -20,7 +20,7 @@ class Program extends Model
 
     protected $fillable = [
         'parti_id', 'type', 'tittel', 'slug', 'nokkel', 'periode', 'vedtatt_ar', 'gjeldende', 'sprak',
-        'kilde_url', 'kilde_side', 'filsti', 'filhash', 'lastet_ned', 'digitalisering_status',
+        'kilde_url', 'kilde_side', 'kildefil', 'filsti', 'filhash', 'lastet_ned', 'digitalisering_status',
         'digitalisering_merknad', 'antall_sider', 'digitalisert', 'godkjent',
     ];
 
@@ -66,6 +66,16 @@ class Program extends Model
         return $this->hasMany(Standpunkt::class);
     }
 
+    public function prosesskjoringer(): HasMany
+    {
+        return $this->hasMany(Prosesskjoring::class)->latest('id');
+    }
+
+    public function aktiveKjoringer(): HasMany
+    {
+        return $this->hasMany(Prosesskjoring::class)->aktive()->latest('id');
+    }
+
     public function scopeGjeldende(Builder $query): void
     {
         $query->where('gjeldende', true);
@@ -95,6 +105,68 @@ class Program extends Model
     public function absoluttFilsti(): string
     {
         return Storage::disk(config('hvamenerpartiet.digitalisering.disk'))->path($this->filsti);
+    }
+
+    /** Full sti til kildefilen i docs/Partiprogram, eller null om programmet ikke har en. */
+    public function kildefilSti(): ?string
+    {
+        if (! $this->kildefil) {
+            return null;
+        }
+
+        $mappe = rtrim(config('hvamenerpartiet.digitalisering.programmappe'), '/');
+        $sti = $mappe.'/'.ltrim($this->kildefil, '/');
+
+        // Filnavn med æ, ø og å kan være lagret som NFC eller NFD avhengig av
+        // hvilket system som la filen i repoet.
+        if (! is_file($sti) && class_exists(\Normalizer::class)) {
+            foreach ([\Normalizer::FORM_C, \Normalizer::FORM_D] as $form) {
+                $variant = \Normalizer::normalize($sti, $form);
+                if ($variant && is_file($variant)) {
+                    return $variant;
+                }
+            }
+        }
+
+        return $sti;
+    }
+
+    public function kildefilFinnes(): bool
+    {
+        $sti = $this->kildefilSti();
+
+        return $sti !== null && is_file($sti);
+    }
+
+    /** Når filen i docs/ sist ble endret. Horizon-prosessene lever lenge, så stat-hurtigbufferen tømmes. */
+    public function kildefilEndretTid(): ?int
+    {
+        $sti = $this->kildefilSti();
+        if ($sti === null) {
+            return null;
+        }
+        clearstatcache(true, $sti);
+
+        return is_file($sti) ? filemtime($sti) : null;
+    }
+
+    /** Om filen i docs/ er nyere enn den som er lest inn. */
+    public function kildefilErEndret(): bool
+    {
+        if (! $this->kildefilFinnes()) {
+            return false;
+        }
+
+        if (! $this->filhash) {
+            return true;
+        }
+
+        $sti = $this->kildefilSti();
+        if ($this->lastet_ned && $this->kildefilEndretTid() <= $this->lastet_ned->getTimestamp()) {
+            return false;
+        }
+
+        return hash_file('sha256', $sti) !== $this->filhash;
     }
 
     /** Lager slug og nøkkel ut fra parti, type og år. */

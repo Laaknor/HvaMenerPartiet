@@ -2,7 +2,10 @@
 
 namespace App\Enums;
 
-enum Sikkerhet: string
+use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
+
+enum Sikkerhet: string implements HasColor, HasLabel
 {
     case Hoy = 'hoy';
     case Middels = 'middels';
@@ -41,5 +44,19 @@ enum Sikkerhet: string
         usort($verdier, fn (self $a, self $b) => $a->rang() <=> $b->rang());
 
         return $verdier[0] ?? self::Lav;
+    }
+
+    public function getLabel(): string
+    {
+        return $this->etikett();
+    }
+
+    public function getColor(): string
+    {
+        return match ($this) {
+            self::Hoy => 'success',
+            self::Middels => 'warning',
+            self::Lav => 'danger',
+        };
     }
 }

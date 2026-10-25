@@ -202,7 +202,7 @@ return [
             'connection' => 'redis',
             'queue' => ['import', 'default'],
             'balance' => 'simple',
-            'maxProcesses' => 2,
+            'maxProcesses' => (int) env('FLYT_KAPASITET_IMPORT', 2),
             'maxTime' => 0,
             'maxJobs' => 0,
             'memory' => 512,

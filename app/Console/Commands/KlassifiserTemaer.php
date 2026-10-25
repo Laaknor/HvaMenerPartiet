@@ -4,8 +4,10 @@ namespace App\Console\Commands;
 
 use App\Analyse\Embedder;
 use App\Analyse\Klassifiserer;
+use App\Enums\Prosessteg;
 use App\Enums\Temastatus;
-use App\Jobs\KlassifiserStandpunkt;
+use App\Enums\Utlosning;
+use App\Flyt\Prosessflyt;
 use App\Models\Program;
 use App\Models\Tema;
 use Illuminate\Console\Command;
@@ -25,7 +27,7 @@ class KlassifiserTemaer extends Command
 
     protected $description = 'Setter standpunkt per parti for temaene, med Ollama';
 
-    public function handle(Embedder $embedder, Klassifiserer $klassifiserer): int
+    public function handle(Embedder $embedder, Klassifiserer $klassifiserer, Prosessflyt $flyt): int
     {
         $temaer = Tema::query()
             ->when($this->argument('tema'), fn ($q, $slugger) => $q->whereIn('slug', $slugger))
@@ -58,7 +60,7 @@ class KlassifiserTemaer extends Command
                 foreach ($program->kildetyper() as $kildetype) {
                     $antall++;
                     if (! $this->option('synkront')) {
-                        KlassifiserStandpunkt::dispatch($tema, $program, $kildetype);
+                        $flyt->start(Prosessteg::Klassifisering, $program, $tema, $kildetype, Utlosning::Kommando);
 
                         continue;
                     }

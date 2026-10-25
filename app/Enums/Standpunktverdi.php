@@ -2,8 +2,11 @@
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
+
 /** Den faste standpunktskalaen, lik for alle temaer. */
-enum Standpunktverdi: string
+enum Standpunktverdi: string implements HasColor, HasLabel
 {
     case For = 'for';
     case DelvisFor = 'delvis_for';
@@ -57,5 +60,21 @@ enum Standpunktverdi: string
     public static function verdier(): array
     {
         return array_map(fn (self $v) => $v->value, self::cases());
+    }
+
+    public function getLabel(): string
+    {
+        return $this->etikett();
+    }
+
+    public function getColor(): string
+    {
+        return match ($this) {
+            self::For => 'success',
+            self::DelvisFor => 'info',
+            self::Mot => 'danger',
+            self::DeltUklart => 'warning',
+            self::IkkeOmtalt => 'gray',
+        };
     }
 }

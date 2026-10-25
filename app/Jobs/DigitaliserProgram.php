@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Digitalisering\Digitaliserer;
+use App\Flyt\SporesSomKjoring;
 use App\Models\Program;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -10,7 +11,7 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 
 class DigitaliserProgram implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SporesSomKjoring;
 
     public int $tries = 1;
 
@@ -28,6 +29,17 @@ class DigitaliserProgram implements ShouldQueue
 
     public function handle(Digitaliserer $digitaliserer): void
     {
-        $digitaliserer->digitaliser($this->program);
+        $this->sporet(function () use ($digitaliserer) {
+            $r = $digitaliserer->digitaliser($this->program);
+
+            return trim("{$r->kapitler} kapitler, {$r->avsnitt} avsnitt, {$r->setninger} setninger. "
+                .($this->program->digitalisering_merknad ?? ''));
+        });
+    }
+
+    /** @return list<string> */
+    public function tags(): array
+    {
+        return ['program:'.$this->program->nokkel];
     }
 }

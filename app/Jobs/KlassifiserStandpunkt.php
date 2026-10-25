@@ -2,8 +2,10 @@
 
 namespace App\Jobs;
 
+use App\Analyse\Embedder;
 use App\Analyse\Klassifiserer;
 use App\Enums\Kildetype;
+use App\Flyt\SporesSomKjoring;
 use App\Models\Program;
 use App\Models\Tema;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -15,7 +17,7 @@ use Illuminate\Foundation\Queue\Queueable;
  */
 class KlassifiserStandpunkt implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SporesSomKjoring;
 
     public int $tries = 3;
 
@@ -28,9 +30,15 @@ class KlassifiserStandpunkt implements ShouldQueue
         $this->onQueue('klassifisering');
     }
 
-    public function handle(Klassifiserer $klassifiserer): void
+    public function handle(Embedder $embedder, Klassifiserer $klassifiserer): void
     {
-        $klassifiserer->klassifiser($this->tema, $this->program, $this->kildetype);
+        $this->sporet(function () use ($embedder, $klassifiserer) {
+            // Temaet trenger embedding for gjenfinningen. Gjøres bare om den mangler.
+            $embedder->forTema($this->tema);
+            $standpunkt = $klassifiserer->klassifiser($this->tema, $this->program, $this->kildetype);
+
+            return $standpunkt->verdi->etikett().' ('.$standpunkt->sikkerhet->etikett().' sikkerhet).';
+        });
     }
 
     /** @return list<string> */

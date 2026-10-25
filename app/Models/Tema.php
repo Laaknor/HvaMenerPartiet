@@ -23,6 +23,17 @@ class Tema extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        // Ny tekst gir ny embedding neste gang temaet klassifiseres.
+        static::saving(function (Tema $tema) {
+            if ($tema->exists && $tema->isDirty(['navn', 'beskrivelse', 'pastand', 'synonymer'])) {
+                $tema->embedding = null;
+                $tema->embeddingmodell = null;
+            }
+        });
+    }
+
     public function overordnet(): BelongsTo
     {
         return $this->belongsTo(self::class, 'overordnet_tema_id');

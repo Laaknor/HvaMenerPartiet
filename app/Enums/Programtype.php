@@ -2,7 +2,10 @@
 
 namespace App\Enums;
 
-enum Programtype: string
+use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
+
+enum Programtype: string implements HasColor, HasLabel
 {
     case Arbeidsprogram = 'arbeidsprogram';
     case Prinsipprogram = 'prinsipprogram';
@@ -40,5 +43,15 @@ enum Programtype: string
             self::Prinsipprogram => [Kildetype::Prinsipprogram],
             self::Kombinert => [Kildetype::Arbeidsprogram, Kildetype::Prinsipprogram],
         };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->etikett();
+    }
+
+    public function getColor(): string
+    {
+        return 'gray';
     }
 }
