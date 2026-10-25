@@ -55,7 +55,7 @@ class Gjenfinner
     {
         return Tekstbit::query()
             ->where('program_id', $program->id)
-            ->when($program->erKombinert(), function ($q) use ($kildetype) {
+            ->when($program->erDelt(), function ($q) use ($kildetype) {
                 // Umerkede avsnitt i et kombinert dokument regnes som handlingsdel.
                 $kildetype->programdel() === Programdel::Handling
                     ? $q->where(fn ($q) => $q->where('del', Programdel::Handling)->orWhereNull('del'))

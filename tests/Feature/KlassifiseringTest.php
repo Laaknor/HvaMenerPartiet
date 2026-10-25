@@ -12,6 +12,7 @@ use App\Digitalisering\ProgramLagrer;
 use App\Enums\Digitaliseringsstatus;
 use App\Enums\Kildetype;
 use App\Enums\Programdel;
+use App\Enums\Programdeling;
 use App\Enums\Sikkerhet;
 use App\Enums\Standpunktstatus;
 use App\Enums\Standpunktverdi;
@@ -224,6 +225,43 @@ class KlassifiseringTest extends TestCase
         $this->assertSame(Standpunktverdi::Mot, $prinsipp->verdi);
         $this->assertSame(Standpunktverdi::DelvisFor, $handling->verdi);
         $this->assertSame(2, $program->standpunkter()->count());
+    }
+
+    public function test_kombinert_dokument_uten_prinsippdel_leses_samlet(): void
+    {
+        $parti = Parti::create(['navn' => 'Samlepartiet', 'forkortelse' => 'SP', 'slug' => 'sa']);
+        $program = $this->lagProgram($parti, 'kombinert', 'sa-kp2025', [
+            new DokumentKapittel('Verdier', 1, 2, [new DokumentAvsnitt('Vi mener NATO er sikkerhetsgarantien vår.', 2, 2)]),
+            new DokumentKapittel('Forsvar', 1, 5, [new DokumentAvsnitt('Vi vil styrke Heimevernet.', 5, 5)], Programdel::Handling),
+        ]);
+
+        $this->assertFalse($program->erDelt());
+        $this->assertSame([Kildetype::Arbeidsprogram], $program->kildetyper());
+
+        $this->ollama->chatsvar = [$this->svar('for', ['S1']), $this->svar('for', ['S1'])];
+        $s = app(Klassifiserer::class)->klassifiser($this->nato, $program, Kildetype::Arbeidsprogram);
+
+        $this->assertStringContainsString('sikkerhetsgarantien', $this->ollama->sisteBrukermelding());
+        $this->assertSame(Standpunktverdi::For, $s->verdi);
+
+        // Delingen kan overstyres i admin.
+        $program->update(['deling' => Programdeling::Delt]);
+        $this->assertTrue($program->erDelt());
+        $this->assertSame([Kildetype::Arbeidsprogram, Kildetype::Prinsipprogram], $program->kildetyper());
+    }
+
+    public function test_kombinert_dokument_med_prinsippdel_deles_automatisk_og_kan_samles(): void
+    {
+        $parti = Parti::create(['navn' => 'Kombipartiet', 'forkortelse' => 'KP', 'slug' => 'kp']);
+        $program = $this->lagProgram($parti, 'kombinert', 'kp-kp2025', [
+            new DokumentKapittel('Prinsipper', 1, 2, [new DokumentAvsnitt('Vi mener NATO er viktig.', 2, 2)], Programdel::Prinsipp),
+        ]);
+
+        $this->assertTrue($program->erDelt());
+
+        $program->update(['deling' => Programdeling::Samlet]);
+        $this->assertFalse($program->erDelt());
+        $this->assertSame([Kildetype::Arbeidsprogram], $program->kildetyper());
     }
 
     public function test_nettverksfeil_kastes_sa_jobben_provers_igjen(): void

@@ -44,8 +44,8 @@ final readonly class Kildeutdrag
     {
         $tittel = $this->program->tittel;
 
-        // Et kombinert dokument har ett navn, men to deler.
-        if ($this->program->erKombinert()) {
+        // Et kombinert dokument som er delt, har ett navn, men to deler.
+        if ($this->program->erDelt()) {
             $tittel .= $this->standpunkt->kildetype === Kildetype::Prinsipprogram ? ', prinsippdelen' : ', handlingsdelen';
         }
 

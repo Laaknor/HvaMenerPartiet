@@ -28,7 +28,10 @@ class ArbeidsflytTest extends TestCase
         $this->assertTrue(Program::where('nokkel', 'ap-ap2021')->where('gjeldende', false)->exists());
         $this->assertTrue(Program::where('nokkel', 'sv-pp2023')->exists());
         $this->assertFalse(Parti::where('slug', 'ap')->first()->load('programmer')->harPrinsipprogram());
-        $this->assertTrue(Parti::where('slug', 'sp')->first()->load('programmer')->harPrinsipprogram());
+        // Sp har et kombinert program uten merket prinsippdel, så det leses samlet.
+        $sp = Parti::where('slug', 'sp')->first()->load('programmer');
+        $this->assertFalse($sp->harPrinsipprogram());
+        $this->assertTrue($sp->harSamletProgram());
         $this->assertGreaterThanOrEqual(6, Tema::count());
 
         // Seederen kan kjøres flere ganger.

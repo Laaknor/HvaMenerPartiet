@@ -65,7 +65,7 @@ class PrototypeRapport extends Command
                     'parti' => $parti->forkortelse,
                     'merkelapp' => $merkelapp,
                     'sikkerhet' => $hoved?->sikkerhet->etikett() ?? '–',
-                    'prinsipp' => $visning->prinsipielleSyn(),
+                    'prinsipp' => $parti->harSamletProgram() ? 'Samlet program' : $visning->prinsipielleSyn(),
                     'utdrag' => $hoved?->utdrag() ?: '–',
                     'prinsipputdrag' => $visning->hovedkilde === Kildetype::Prinsipprogram ? '' : ($visning->prinsippstandpunkt?->utdrag() ?? ''),
                     'lenke' => $hoved ? Kildelenke::for($hoved->utdragssetninger()) : null,

@@ -16,12 +16,13 @@ class Delmerker
 
     private const HANDLING = '/(?<!\p{L})(handlings(program|del)|arbeidsprogram|stortingsvalgprogram|valgprogram|politikk(en)? for (perioden|stortingsperioden)|politikken vår|vår politikk)\b/iu';
 
-    /** @return array{merket: int, umerket: int} */
+    /** @return array{merket: int, umerket: int, prinsipp: int} */
     public function merk(Dokument $dokument): array
     {
         $gjeldende = null;
         $merket = 0;
         $umerket = 0;
+        $prinsipp = 0;
 
         foreach ($dokument->kapitler as $kapittel) {
             if ($kapittel->niva === 1 || $gjeldende === null) {
@@ -33,9 +34,10 @@ class Delmerker
 
             $kapittel->del = $gjeldende;
             $gjeldende === null ? $umerket++ : $merket++;
+            $gjeldende === Programdel::Prinsipp && $prinsipp++;
         }
 
-        return ['merket' => $merket, 'umerket' => $umerket];
+        return ['merket' => $merket, 'umerket' => $umerket, 'prinsipp' => $prinsipp];
     }
 
     public function delFraOverskrift(string $tittel): ?Programdel

@@ -56,7 +56,10 @@ class Temaoversikt
 
             $partikort = match ($visning) {
                 self::ARBEIDSPROGRAM => $arbeid ? $this->enkelt($parti, $arbeid) : null,
-                self::PRINSIPPROGRAM => $this->bareprinsipp($parti, $prinsipp),
+                // Et samlet prinsipp- og handlingsprogram gjelder også for prinsippvisningen.
+                self::PRINSIPPROGRAM => $parti->harSamletProgram()
+                    ? ($arbeid ? $this->enkelt($parti, $arbeid) : null)
+                    : $this->bareprinsipp($parti, $prinsipp),
                 default => ($arbeid || $prinsipp) ? $this->samlet($parti, $arbeid, $prinsipp) : null,
             };
 
@@ -105,7 +108,8 @@ class Temaoversikt
             sikkerhet: $hoved?->verdi->omtaler() ? $hoved->sikkerhet : null,
             merknad: $visning->merknad,
             avvikverdi: $visning->avvik ? $visning->prinsippstandpunkt?->verdi : null,
-            prinsipieltSyn: $fraPrinsipp ? null : $visning->prinsipielleSyn(),
+            // Et samlet program har ikke et eget prinsipielt syn ved siden av.
+            prinsipieltSyn: $fraPrinsipp || $parti->harSamletProgram() ? null : $visning->prinsipielleSyn(),
             prinsippkilde: $prinsippkilde,
         );
     }

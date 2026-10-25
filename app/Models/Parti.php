@@ -29,11 +29,21 @@ class Parti extends Model
         return $this->hasMany(Program::class);
     }
 
-    /** Har partiet et gjeldende program som gir prinsipielt syn (eget eller kombinert)? */
+    /**
+     * Har partiet et gjeldende program som gir eget prinsipielt syn? Det er et
+     * prinsipprogram eller et kombinert dokument som er delt i to deler.
+     */
     public function harPrinsipprogram(): bool
     {
         return $this->programmer
             ->where('gjeldende', true)
-            ->contains(fn (Program $p) => in_array($p->type, [Programtype::Prinsipprogram, Programtype::Kombinert], true));
+            ->contains(fn (Program $p) => $p->type === Programtype::Prinsipprogram || $p->erDelt());
+    }
+
+    /** Har partiet et kombinert prinsipp- og handlingsprogram som leses samlet? */
+    public function harSamletProgram(): bool
+    {
+        return ! $this->harPrinsipprogram()
+            && $this->programmer->where('gjeldende', true)->contains(fn (Program $p) => $p->erSamlet());
     }
 }

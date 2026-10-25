@@ -4,6 +4,7 @@ namespace App\Digitalisering;
 
 use App\Analyse\Tekstbitbygger;
 use App\Enums\Digitaliseringsstatus;
+use App\Enums\Programdeling;
 use App\Models\Program;
 use RuntimeException;
 use Throwable;
@@ -40,8 +41,11 @@ class Digitaliserer
             $merknader = array_filter([$dokument->utelattBeskrivelse()]);
             if ($program->erKombinert()) {
                 $deler = $this->delmerker->merk($dokument);
-                if ($deler['umerket'] > 0) {
-                    $merknader[] = "{$deler['umerket']} av ".count($dokument->kapitler).' kapitler mangler prinsipp- eller handlingsdel og må merkes manuelt.';
+                $deling = $program->deling ?? Programdeling::Automatisk;
+                if ($deling === Programdeling::Automatisk && $deler['prinsipp'] === 0) {
+                    $merknader[] = 'Fant ingen merket prinsippdel, så dokumentet leses som ett samlet program. Merk kapitler som prinsippdel eller endre delingen på programmet hvis det skal deles.';
+                } elseif ($deling !== Programdeling::Samlet && $deler['umerket'] > 0) {
+                    $merknader[] = "{$deler['umerket']} av ".count($dokument->kapitler).' kapitler mangler prinsipp- eller handlingsdel og regnes som handlingsdel til de merkes manuelt.';
                 }
             }
 
