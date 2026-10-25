@@ -144,6 +144,27 @@ class OffentligeSiderTest extends TestCase
             ->assertDontSee('«Norge bør ut av NATO.»');
     }
 
+    public function test_kombinert_program_uten_prinsippdel_vises_som_ett_samlet_program(): void
+    {
+        $sp = $this->parti('sp', 'Senterpartiet');
+        $kp = $this->program($sp, 'kombinert', 'NATO er sikkerhetsgarantien vår.');
+        $kp->update(['tittel' => 'Prinsipp- og handlingsprogram 2025–2029']);
+        $this->standpunkt($kp, Standpunktverdi::For, 'NATO er sikkerhetsgarantien vår.');
+
+        $this->get('/tema/nato')
+            ->assertOk()
+            ->assertSee('«NATO er sikkerhetsgarantien vår.»')
+            ->assertSee('Prinsipp- og handlingsprogram 2025–2029, s. 7')
+            ->assertDontSee('handlingsdelen')
+            ->assertDontSee('Prinsipielt syn:')
+            ->assertDontSee('Ingen prinsipprogram');
+
+        $this->get('/tema/nato?visning=prinsipprogram')
+            ->assertOk()
+            ->assertSee('«NATO er sikkerhetsgarantien vår.»')
+            ->assertDontSee('Partiet har ikke et gjeldende prinsipprogram.');
+    }
+
     public function test_upubliserte_temaer_finnes_ikke(): void
     {
         Tema::create(['navn' => 'EU', 'slug' => 'eu', 'pastand' => 'Norge bør bli med i EU.', 'status' => 'analysert']);

@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Enums\Digitaliseringsstatus;
 use App\Enums\Kildetype;
+use App\Enums\Programdel;
+use App\Enums\Programdeling;
 use App\Enums\Programtype;
 use App\Sidecache\TommerSidecache;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,7 +22,7 @@ class Program extends Model
     protected $table = 'programmer';
 
     protected $fillable = [
-        'parti_id', 'type', 'tittel', 'slug', 'nokkel', 'periode', 'vedtatt_ar', 'gjeldende', 'sprak',
+        'parti_id', 'type', 'deling', 'tittel', 'slug', 'nokkel', 'periode', 'vedtatt_ar', 'gjeldende', 'sprak',
         'kilde_url', 'kilde_side', 'kildefil', 'filsti', 'filhash', 'lastet_ned', 'digitalisering_status',
         'digitalisering_merknad', 'antall_sider', 'digitalisert', 'godkjent',
     ];
@@ -29,6 +31,7 @@ class Program extends Model
     {
         return [
             'type' => Programtype::class,
+            'deling' => Programdeling::class,
             'digitalisering_status' => Digitaliseringsstatus::class,
             'gjeldende' => 'boolean',
             'lastet_ned' => 'datetime',
@@ -87,15 +90,52 @@ class Program extends Model
         $query->where('digitalisering_status', Digitaliseringsstatus::Godkjent);
     }
 
-    /** @return list<Kildetype> */
+    /**
+     * Et kombinert dokument som leses samlet, gir bare ett standpunkt per
+     * tema, lagret som arbeidsprogram.
+     *
+     * @return list<Kildetype>
+     */
     public function kildetyper(): array
     {
+        if ($this->erKombinert() && ! $this->erDelt()) {
+            return [Kildetype::Arbeidsprogram];
+        }
+
         return $this->type->kildetyper();
     }
 
     public function erKombinert(): bool
     {
         return $this->type === Programtype::Kombinert;
+    }
+
+    /**
+     * Leses det kombinerte dokumentet som to programmer? Automatisk betyr at
+     * det deles bare når minst ett kapittel er merket som prinsippdel.
+     */
+    public function erDelt(): bool
+    {
+        if (! $this->erKombinert()) {
+            return false;
+        }
+
+        return match ($this->deling ?? Programdeling::Automatisk) {
+            Programdeling::Delt => true,
+            Programdeling::Samlet => false,
+            Programdeling::Automatisk => $this->harPrinsippdel(),
+        };
+    }
+
+    /** Kombinert dokument som leses som ett samlet program. */
+    public function erSamlet(): bool
+    {
+        return $this->erKombinert() && ! $this->erDelt();
+    }
+
+    public function harPrinsippdel(): bool
+    {
+        return $this->kapitler()->where('del', Programdel::Prinsipp)->exists();
     }
 
     public function filFinnes(): bool

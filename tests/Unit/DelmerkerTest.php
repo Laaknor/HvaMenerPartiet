@@ -24,7 +24,7 @@ class DelmerkerTest extends TestCase
         $resultat = (new Delmerker)->merk($dok);
 
         $this->assertSame([null, Programdel::Prinsipp, Programdel::Prinsipp, Programdel::Prinsipp, Programdel::Handling, Programdel::Handling], array_map(fn ($k) => $k->del, $dok->kapitler));
-        $this->assertSame(['merket' => 5, 'umerket' => 1], $resultat);
+        $this->assertSame(['merket' => 5, 'umerket' => 1, 'prinsipp' => 3], $resultat);
     }
 
     public function test_dokumenttittel_med_begge_ord_er_ikke_et_skifte(): void

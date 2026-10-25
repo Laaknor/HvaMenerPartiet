@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Programmer;
 
 use App\Enums\Digitaliseringsstatus;
+use App\Enums\Programdeling;
 use App\Enums\Programtype;
 use App\Filament\Handlinger\Programhandlinger;
 use App\Filament\Resources\Programmer\Pages\ListProgrammer;
@@ -78,6 +79,13 @@ class ProgramResource extends Resource
                 TextInput::make('periode')->maxLength(20),
                 TextInput::make('vedtatt_ar')->label('Vedtatt år')->numeric()->minValue(1900)->maxValue(2100),
                 Toggle::make('gjeldende'),
+                Select::make('deling')
+                    ->label('Prinsipp- og handlingsdel')
+                    ->options(Programdeling::class)
+                    ->required()
+                    ->visible(fn (?Program $record) => $record?->erKombinert())
+                    ->helperText('Et samlet program gir ett standpunkt per tema og ingen egen linje for prinsipielt syn. Klassifiser programmet på nytt etter en endring.')
+                    ->columnSpanFull(),
             ]),
             Section::make('Kilde')->schema([
                 Select::make('kildefil')
@@ -102,6 +110,10 @@ class ProgramResource extends Resource
                     ->color(fn (Program $record) => self::status($record)->farge),
                 TextEntry::make('digitalisering_status')->label('Digitalisering')->badge(),
                 TextEntry::make('type')->badge(),
+                TextEntry::make('deling')
+                    ->label('Leses som')
+                    ->state(fn (Program $record) => $record->erDelt() ? 'To deler: prinsippdel og handlingsdel' : 'Ett samlet program')
+                    ->visible(fn (Program $record) => $record->erKombinert()),
                 TextEntry::make('digitalisering_merknad')->label('Merknad')->placeholder('Ingen')->columnSpanFull(),
             ]),
             Section::make('Kilde')->columns(3)->collapsible()->schema([
