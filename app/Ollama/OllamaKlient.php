@@ -41,6 +41,34 @@ class OllamaKlient
         return $this->embeddingmodell;
     }
 
+    public function url(): string
+    {
+        return rtrim($this->url, '/');
+    }
+
+    public function embeddingUrl(): string
+    {
+        return rtrim($this->embeddingUrl ?: $this->url, '/');
+    }
+
+    public function embeddingApi(): string
+    {
+        return $this->embeddingApi;
+    }
+
+    /**
+     * Hva Ollama sier modellen kan («completion», «embedding», ...).
+     * Null når serveren ikke er Ollama eller modellen ikke finnes.
+     *
+     * @return list<string>|null
+     */
+    public function evner(string $modell, ?string $url = null): ?array
+    {
+        $svar = $this->http($url)->post('/api/show', ['model' => $modell]);
+
+        return $svar->successful() ? (array) $svar->json('capabilities', []) : null;
+    }
+
     /**
      * @param  list<string>  $tekster
      * @return list<list<float>>
@@ -121,10 +149,10 @@ class OllamaKlient
 
         if (str_contains($kropp, '--embeddings') || $status === 501) {
             throw new Konfigurasjonsfeil(
-                "Serveren på {$server} støtter ikke embeddings ({$status}: ".mb_substr($kropp, 0, 200).'). '
-                .'Det ser ut som llama.cpp-server. Start den med --embeddings og en embeddingmodell og sett '
-                .'OLLAMA_EMBEDDING_API=openai, eller pek OLLAMA_EMBEDDING_URL til en Ollama-server med '
-                ."«{$this->embeddingmodell}» installert."
+                "Modellen «{$this->embeddingmodell}» på {$server} lager ikke embeddings ({$status}: ".mb_substr($kropp, 0, 200).'). '
+                .'Med Ollama betyr det nesten alltid at OLLAMA_EMBEDDINGMODELL peker på en chatmodell i stedet for en '
+                .'embeddingmodell som bge-m3. Kjør «php artisan ollama:sjekk» for å se hva appen bruker. Er serveren '
+                .'llama.cpp-server, må den startes med --embeddings og OLLAMA_EMBEDDING_API=openai settes.'
             );
         }
 

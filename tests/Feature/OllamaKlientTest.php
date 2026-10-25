@@ -53,7 +53,7 @@ class OllamaKlientTest extends TestCase
             $this->fail('Forventet Konfigurasjonsfeil');
         } catch (Konfigurasjonsfeil $e) {
             $this->assertStringContainsString('--embeddings', $e->getMessage());
-            $this->assertStringContainsString('OLLAMA_EMBEDDING_URL', $e->getMessage());
+            $this->assertStringContainsString('ollama:sjekk', $e->getMessage());
         }
     }
 
@@ -67,5 +67,34 @@ class OllamaKlientTest extends TestCase
         } catch (Konfigurasjonsfeil $e) {
             $this->fail('Midlertidige feil skal ikke stoppe nye forsøk');
         }
+    }
+
+    public function test_sjekk_viser_innstillinger_og_avslorer_chatmodell_som_embeddingmodell(): void
+    {
+        $this->klient(['embeddingmodell' => 'gemma3:27b']);
+        $this->app->forgetInstance(OllamaKlient::class);
+        Http::fake([
+            '*/api/show' => Http::response(['capabilities' => ['completion', 'vision']]),
+            '*/api/embed' => Http::response(['error' => 'This server does not support embeddings. Start it with `--embeddings`'], 501),
+            '*/api/chat' => Http::response(['message' => ['content' => '{"ok":true}']]),
+        ]);
+
+        $this->artisan('ollama:sjekk')
+            ->expectsOutputToContain('er ikke en embeddingmodell')
+            ->expectsOutputToContain('Tolkning virker')
+            ->assertFailed();
+    }
+
+    public function test_sjekk_lykkes_med_riktig_oppsett(): void
+    {
+        $this->klient(['embeddingmodell' => 'bge-m3']);
+        $this->app->forgetInstance(OllamaKlient::class);
+        Http::fake([
+            '*/api/show' => Http::response(['capabilities' => ['embedding']]),
+            '*/api/embed' => Http::response(['embeddings' => [[0.1, 0.2, 0.3]]]),
+            '*/api/chat' => Http::response(['message' => ['content' => '{"ok":true}']]),
+        ]);
+
+        $this->artisan('ollama:sjekk')->expectsOutputToContain('3 dimensjoner')->assertSuccessful();
     }
 }
