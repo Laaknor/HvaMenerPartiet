@@ -38,6 +38,16 @@ php artisan horizon                        # i et eget vindu
 
 Ollama bør helst kjøre på en egen server med GPU. Sett `OLLAMA_URL` og `OLLAMA_SAMTIDIGE` (antall samtidige jobber serveren tåler) i `.env`. Modellen for klassifisering velges i `OLLAMA_MODELL` og skal velges ved måling mot testsettet i fase 2.
 
+### Tilgang til admin og Horizon
+
+Utenfor lokalt miljø (`APP_ENV` er ikke `local`) slipper `/admin` og `/horizon` bare inn brukere med admintilgang. Andre får 403. Gi tilgang slik, og kommandoen lager brukeren hvis den ikke finnes:
+
+```sh
+php artisan migrate
+php artisan bruker:admin deg@eksempel.no
+php artisan bruker:admin deg@eksempel.no --fjern   # fjerner tilgangen
+```
+
 ## Arbeidsflyt for prototypen
 
 ```sh
