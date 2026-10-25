@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use App\Enums\Programdel;
+use App\Sidecache\TommerSidecache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Kapittel extends Model
 {
+    use TommerSidecache;
+
     protected $table = 'kapitler';
 
     protected $fillable = ['program_id', 'overordnet_kapittel_id', 'nr', 'niva', 'rekkefolge', 'tittel', 'slug', 'del', 'side'];

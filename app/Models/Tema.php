@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use App\Enums\Temastatus;
+use App\Sidecache\TommerSidecache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Tema extends Model
 {
+    use TommerSidecache;
+
     protected $table = 'temaer';
 
     protected $fillable = ['navn', 'slug', 'beskrivelse', 'pastand', 'synonymer', 'overordnet_tema_id', 'status', 'embedding', 'embeddingmodell'];

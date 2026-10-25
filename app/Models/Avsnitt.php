@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use App\Enums\Programdel;
+use App\Sidecache\TommerSidecache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Avsnitt extends Model
 {
+    use TommerSidecache;
+
     protected $table = 'avsnitt';
 
     protected $fillable = [

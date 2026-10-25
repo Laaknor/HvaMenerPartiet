@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Sidecache\TommerSidecache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Setning extends Model
 {
+    use TommerSidecache;
+
     protected $table = 'setninger';
 
     protected $fillable = ['program_id', 'avsnitt_id', 'nr', 'nokkel', 'er_punkt', 'tekst', 'tekst_hash'];

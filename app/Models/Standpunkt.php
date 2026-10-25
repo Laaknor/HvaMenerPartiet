@@ -6,6 +6,7 @@ use App\Enums\Kildetype;
 use App\Enums\Sikkerhet;
 use App\Enums\Standpunktstatus;
 use App\Enums\Standpunktverdi;
+use App\Sidecache\TommerSidecache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -13,6 +14,8 @@ use Illuminate\Support\Collection;
 
 class Standpunkt extends Model
 {
+    use TommerSidecache;
+
     protected $table = 'standpunkter';
 
     protected $fillable = [
