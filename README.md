@@ -39,6 +39,8 @@ php artisan schedule:work                  # i et eget vindu (i drift: cron med 
 
 Ollama bør helst kjøre på en egen server med GPU. Sett `OLLAMA_URL` og `OLLAMA_SAMTIDIGE` (antall samtidige jobber serveren tåler) i `.env`. Modellen for klassifisering velges i `OLLAMA_MODELL` og skal velges ved måling mot testsettet i fase 2.
 
+Embeddings kan gå til en annen server enn tolkningen, med `OLLAMA_EMBEDDING_URL`. Er serveren llama.cpp-server og ikke Ollama, må den startes med `--embeddings` og en embeddingmodell (for eksempel bge-m3 i GGUF), og `OLLAMA_EMBEDDING_API=openai` må settes så `/v1/embeddings` brukes. En server som ikke støtter embeddings, gir en forklarende feil uten nye forsøk.
+
 ### Tilgang til admin og Horizon
 
 Utenfor lokalt miljø (`APP_ENV` er ikke `local`) slipper `/admin` og `/horizon` bare inn brukere med admintilgang. Andre får 403. Gi tilgang slik, og kommandoen lager brukeren hvis den ikke finnes:

@@ -10,6 +10,12 @@ return [
         'url' => env('OLLAMA_URL', 'http://127.0.0.1:11434'),
         'modell' => env('OLLAMA_MODELL', 'gemma3:27b'),
         'embeddingmodell' => env('OLLAMA_EMBEDDINGMODELL', 'bge-m3'),
+        // Embeddings kan gå til en annen server enn tolkningen. Tom verdi
+        // betyr samme server som OLLAMA_URL.
+        'embedding_url' => env('OLLAMA_EMBEDDING_URL') ?: env('OLLAMA_URL', 'http://127.0.0.1:11434'),
+        // «ollama» bruker /api/embed. «openai» bruker /v1/embeddings, som
+        // llama.cpp-server (startet med --embeddings), vLLM og andre støtter.
+        'embedding_api' => env('OLLAMA_EMBEDDING_API', 'ollama'),
         'tidsavbrudd' => (int) env('OLLAMA_TIDSAVBRUDD', 600),
         'samtidige' => (int) env('OLLAMA_SAMTIDIGE', 2),
         'kontekstlengde' => (int) env('OLLAMA_KONTEKSTLENGDE', 16384),
