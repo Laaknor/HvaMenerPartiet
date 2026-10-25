@@ -74,6 +74,37 @@ Rapporten viser standpunkt per parti slik partikortet ville vist det, med utdrag
 
 **Klassifisering** (`app/Analyse`). Korte avsnitt under samme overskrift slås sammen til biter på 200–600 ord. For hvert tema finnes de beste bitene per program med embeddings og søk på navn og synonymer. Uten treff over terskelen settes «Ikke omtalt» uten LLM-kall. Ellers får modellen avsnittene med setnings-ID-er, uten partinavn, og svarer med standpunkt, sikkerhet, begrunnelse og ID-ene til setningene som støtter det. Koden forkaster ID-er som ikke finnes, og utdraget bygges fra setningene i databasen, så sitatet alltid er ordrett. Klassifiseringen kjøres to ganger, og uenighet gir «Delt / uklart» med lav sikkerhet.
 
+## Analyse med Matomo
+
+Den offentlige siden sporer bruk med Matomo. Sett `MATOMO_HOST` (for eksempel `analytics.laaknor.no`) og `MATOMO_SITE_ID` i `.env`. Står en av dem tomt, legges ingen sporingskode inn. Admin (`/admin`) spores aldri.
+
+Sporingskoden ligger i komponenten `<x-matomo />` (`resources/views/components/matomo.blade.php`) og legges i `<head>` på alle offentlige sider. Den sporer sidevisninger og klikk på eksterne lenker og nedlastinger (for eksempel PDF-en av et program).
+
+**Interne søk.** En søkeresultatside skal spore søket i stedet for en vanlig sidevisning:
+
+```blade
+<x-matomo :sok="$sokeord" sokekategori="Tema" :treff="$antallTreff" />
+```
+
+Antall treff 0 viser søk uten resultat i Matomo-rapporten, som er nyttig for å finne temaer som mangler. Søk som oppdateres uten ny sidelasting (Livewire) spores med `HvaMenerPartiet.sporSok(sokeord, kategori, treff)` i JavaScript.
+
+**Hendelser.** Merk elementer i HTML-en med `data-spor-*`, så sendes en Matomo-hendelse ved klikk. Et `<details>`-element sendes når det åpnes.
+
+```blade
+<details data-spor-kategori="Standpunkt" data-spor-handling="Åpne" data-spor-navn="NATO – Høyre">…</details>
+<a href="…" data-spor-kategori="Kilde" data-spor-handling="Programlenke" data-spor-navn="Høyre arbeidsprogram 2025 s. 34">Les i programmet</a>
+```
+
+`data-spor-verdi` kan legges til for en tallverdi. Fra JavaScript: `HvaMenerPartiet.spor(kategori, handling, navn, verdi)`. Faste navn gjør rapportene lettere å lese:
+
+| Kategori | Handling | Navn |
+|---|---|---|
+| Standpunkt | Åpne | «Tema – Parti» |
+| Kilde | Programlenke / Stortingsvotering | «Parti program år s. side» |
+| Søk | Velg forslag | Temaet i autofullføringen |
+| Tema | Foreslå tema | Søkeordet |
+| Tilbakemelding | Meld fra om feil | «Tema – Parti» |
+
 ## Tester
 
 ```sh
