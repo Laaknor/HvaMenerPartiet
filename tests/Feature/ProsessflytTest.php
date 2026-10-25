@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Analyse\Embedder;
 use App\Enums\Digitaliseringsstatus;
 use App\Enums\Kjoringsstatus;
 use App\Enums\Prosessteg;
@@ -12,6 +13,7 @@ use App\Flyt\Programmappe;
 use App\Flyt\Prosessflyt;
 use App\Flyt\Prosessplanlegger;
 use App\Jobs\DigitaliserProgram;
+use App\Jobs\LagEmbeddings;
 use App\Jobs\LesInnProgram;
 use App\Models\Parti;
 use App\Models\Program;
@@ -21,6 +23,7 @@ use App\Models\Tema;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -164,6 +167,32 @@ class ProsessflytTest extends TestCase
 
         $this->assertSame(1, app(Prosessplanlegger::class)->ryddOpp());
         $this->assertSame(Kjoringsstatus::Feilet, $kjoring->refresh()->status);
+    }
+
+    public function test_embeddingserver_uten_stotte_feiler_med_en_gang_og_forklarer_hvorfor(): void
+    {
+        $this->krevPdftotext();
+        $program = $this->lagProgram('tp');
+        app(Prosessplanlegger::class)->planlegg();
+        app(Prosessplanlegger::class)->planlegg();
+        $this->assertGreaterThan(0, $program->tekstbiter()->count());
+
+        Http::fake(['*' => Http::response(['error' => 'This server does not support embeddings. Start it with `--embeddings`'], 501)]);
+        $kjoring = Prosesskjoring::create([
+            'steg' => Prosessteg::Embeddings, 'program_id' => $program->id, 'status' => Kjoringsstatus::IKo,
+            'utlost_av' => Utlosning::Admin,
+        ]);
+
+        $jobb = (new LagEmbeddings($program))->medKjoring($kjoring)->withFakeQueueInteractions();
+        $jobb->handle(app(Embedder::class));
+
+        $jobb->assertFailed();
+        $jobb->assertNotReleased();
+
+        $kjoring->refresh();
+        $this->assertSame(Kjoringsstatus::Feilet, $kjoring->status);
+        $this->assertStringNotContainsString('Prøver igjen', $kjoring->melding);
+        $this->assertStringContainsString('--embeddings', $kjoring->melding);
     }
 
     public function test_automatisk_drift_kan_slas_av(): void

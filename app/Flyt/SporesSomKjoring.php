@@ -4,6 +4,7 @@ namespace App\Flyt;
 
 use App\Enums\Kjoringsstatus;
 use App\Models\Prosesskjoring;
+use App\Ollama\Konfigurasjonsfeil;
 use Throwable;
 
 /**
@@ -38,6 +39,10 @@ trait SporesSomKjoring
         try {
             $melding = $arbeid();
             $kjoring?->update(['status' => Kjoringsstatus::Ferdig, 'ferdig' => now(), 'melding' => $melding]);
+        } catch (Konfigurasjonsfeil $e) {
+            // Feil oppsett blir ikke bedre av nye forsøk.
+            $kjoring?->update(['status' => Kjoringsstatus::Feilet, 'ferdig' => now(), 'melding' => $e->getMessage()]);
+            $this->fail($e);
         } catch (Throwable $e) {
             $siste = $this->attempts() >= ($this->tries ?? 1);
             $kjoring?->update([
