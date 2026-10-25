@@ -1,4 +1,6 @@
-# HvaMenerPartiet
+# HvaMenerPartiet.no
+
+![HvaMenerPartiet.no](public/logo.svg)
 
 HvaMenerPartiet lar en velger søke på et tema, for eksempel «NATO», og se hva hvert parti mener, med et ordrett utdrag fra partiprogrammet og lenke til de siterte setningene. Se [designdokumentet](docs/designdokument.md) for formål, metode og plan.
 
@@ -6,7 +8,7 @@ All analyse skjer på forhånd i bakgrunnsjobber. Nettsiden gjør aldri LLM-kall
 
 ## Status: fase 1, prototype
 
-Denne versjonen dekker første trinn i planen: programmene leses inn fra `docs/Partiprogram`, digitaliseres og klassifiseres for et lite sett temaer, og resultatet samles i en rapport for manuell sammenligning. Hele flyten kan styres og følges i admin (`/admin`). Den offentlige nettsiden kommer i et senere trinn.
+Denne versjonen dekker første trinn i planen: programmene leses inn fra `docs/Partiprogram`, digitaliseres og klassifiseres for et lite sett temaer, og resultatet samles i en rapport for manuell sammenligning. Hele flyten kan styres og følges i admin (`/admin`). Den offentlige nettsiden viser temaene og programmene som er godkjent (se under).
 
 ## Teknologi
 
@@ -109,6 +111,26 @@ Rapporten viser standpunkt per parti slik partikortet ville vist det, med utdrag
 
 **Klassifisering** (`app/Analyse`). Korte avsnitt under samme overskrift slås sammen til biter på 200–600 ord. For hvert tema finnes de beste bitene per program med embeddings og søk på navn og synonymer. Uten treff over terskelen settes «Ikke omtalt» uten LLM-kall. Ellers får modellen avsnittene med setnings-ID-er, uten partinavn, og svarer med standpunkt, sikkerhet, begrunnelse og ID-ene til setningene som støtter det. Koden forkaster ID-er som ikke finnes, og utdraget bygges fra setningene i databasen, så sitatet alltid er ordrett. Klassifiseringen kjøres to ganger, og uenighet gir «Delt / uklart» med lav sikkerhet.
 
+## Den offentlige nettsiden
+
+Siden viser bare det som er godkjent i admin: temaer med status «Publisert», standpunkter som er godkjent eller korrigert, og programmer der strukturen er godkjent. Søket gjør aldri LLM-kall.
+
+| Adresse | Innhold |
+| --- | --- |
+| `/` | Forside med søk, temaer, skalaen og partiene |
+| `/sok?q=…` | Søk på tema. Treffer søket navn, slug eller synonym, sendes brukeren rett til temaet. Ellers vises treff, eller nærmeste temaer (skrivefeil) og en knapp for å foreslå temaet |
+| `/tema` og `/tema/{slug}` | Alle temaer, og ett tema med påstanden og ett partikort per parti, sortert etter standpunkt. `?visning=arbeidsprogram` eller `prinsipprogram` viser bare den ene programtypen |
+| `/program`, `/program/{parti}/{program}` og `…/{kap}` | De digitaliserte programmene. Avsnitt har ID `a12` og setninger `a12-s3`, og `#a12-s3-s5` markerer setning 3–5 |
+| `/om` | Om og metode: skala, visningsregel, kjente svakheter |
+
+**Partikortet** har merkelapp, ordrett utdrag (maks tre setninger), lenke til setningene i programmet (eller PDF-en som reserve), «Prinsipielt syn», sikkerhet og «Vis mer» med prinsipprogrammets utdrag og «Meld fra om feil». Visningen bygges i `app/Visning/Temaoversikt.php` med den faste visningsregelen. Partier uten godkjent standpunkt står under «Ikke ferdig kontrollert».
+
+**Søket** (`app/Sok/Temasok.php`) går i PHP over de publiserte temaene, så det virker likt i MySQL og SQLite. Autofullføringen er en `<datalist>` med navn og synonymer.
+
+**Fra besøkende.** «Foreslå tema» lagres i `temaforslag` (like forslag telles opp) og «Meld fra om feil» i `tilbakemeldinger`. Begge vises i admin under «Fra besøkende». Skjemaene har et skjult felt mot roboter og er begrenset til 10 innsendinger i minuttet.
+
+**Profil.** Logoen er en snakkeboble med tre søyler av ulik lengde, i blekkblått og grått med fiolett aksent, bevisst uten partifarger. Filer: `public/logo.svg`, `public/favicon.svg` (følger lyst/mørkt tema), `favicon.ico`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `site.webmanifest` og `delingsbilde.png`. Merkelappene bruker blått for «for» og oransje for «mot» i stedet for grønt og rødt, så de ikke leses som riktig og galt, og partifargene vises bare som en stripe på kortet. Stilen står i `resources/css/app.css` og krever `npm run build`.
+
 ## Analyse med Matomo
 
 Den offentlige siden sporer bruk med Matomo. Sett `MATOMO_HOST` (for eksempel `analytics.laaknor.no`) og `MATOMO_SITE_ID` i `.env`. Står en av dem tomt, legges ingen sporingskode inn. Admin (`/admin`) spores aldri.
@@ -138,6 +160,7 @@ Antall treff 0 viser søk uten resultat i Matomo-rapporten, som er nyttig for å
 | Kilde | Programlenke / Stortingsvotering | «Parti program år s. side» |
 | Søk | Velg forslag | Temaet i autofullføringen |
 | Tema | Foreslå tema | Søkeordet |
+| Tema | Velg visning | Samlet / Bare arbeidsprogram / Bare prinsipprogram |
 | Tilbakemelding | Meld fra om feil | «Tema – Parti» |
 
 ## Søkemotorer, LLM-er og cache

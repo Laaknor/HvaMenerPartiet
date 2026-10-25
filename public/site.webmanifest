@@ -1,0 +1,15 @@
+{
+    "name": "HvaMenerPartiet.no",
+    "short_name": "HvaMenerPartiet",
+    "description": "Søk på et tema og se hva hvert parti mener, med ordrett sitat fra partiprogrammet.",
+    "lang": "nb",
+    "start_url": "/",
+    "display": "browser",
+    "background_color": "#F6F7FB",
+    "theme_color": "#1F2A44",
+    "icons": [
+        { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+        { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+    ]
+}

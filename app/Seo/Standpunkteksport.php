@@ -4,6 +4,7 @@ namespace App\Seo;
 
 use App\Analyse\Kildelenke;
 use App\Analyse\Visningsregel;
+use App\Enums\Digitaliseringsstatus;
 use App\Enums\Kildetype;
 use App\Enums\Standpunktstatus;
 use App\Enums\Temastatus;
@@ -104,9 +105,9 @@ class Standpunkteksport
         $tekst = $program->tittel.($side ? ", s. {$side}" : '');
 
         // Lenke til setningene i det digitaliserte programmet når den siden
-        // finnes, ellers til originalen.
+        // finnes (bare godkjente programmer vises), ellers til originalen.
         $lenke = Kildelenke::for($setninger);
-        if ($lenke && $this->ruteFinnes(strtok($lenke, '#'))) {
+        if ($lenke && $program->digitalisering_status === Digitaliseringsstatus::Godkjent && $this->ruteFinnes(strtok($lenke, '#'))) {
             return "[{$tekst}](".url($lenke).')';
         }
 

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 392 64" role="img" aria-labelledby="t">
+  <title id="t">HvaMenerPartiet.no</title>
+  <path fill="#1F2A44" d="M16 6H48A12 12 0 0 1 60 18V36A12 12 0 0 1 48 48H29L16 59V48A12 12 0 0 1 4 36V18A12 12 0 0 1 16 6Z"/>
+  <rect fill="#FFFFFF" x="14" y="15" width="36" height="6" rx="3"/>
+  <rect fill="#B9AEF2" x="14" y="24" width="22" height="6" rx="3"/>
+  <rect fill="#FFFFFF" fill-opacity=".65" x="14" y="33" width="29" height="6" rx="3"/>
+  <text x="74" y="41" font-family="'Instrument Sans', ui-sans-serif, system-ui, sans-serif" font-size="30" font-weight="600" letter-spacing="-0.5" fill="#1F2A44">HvaMener<tspan fill="#5B4BC4">Partiet</tspan><tspan fill="#6B7280" font-weight="500">.no</tspan></text>
+</svg>
