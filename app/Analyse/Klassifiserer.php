@@ -51,10 +51,7 @@ class Klassifiserer
             ]);
         }
 
-        $avsnitt = $this->avsnittFraTreff($program, $treff);
-        $setninger = $avsnitt->flatMap->setninger->keyBy('nokkel');
-        $referanser = self::referanser($setninger);
-        $meldinger = $this->meldinger($tema, $program, $kildetype, $avsnitt);
+        ['setninger' => $setninger, 'referanser' => $referanser, 'meldinger' => $meldinger] = $this->forbered($tema, $program, $kildetype, $treff);
 
         $kjoringer = [];
         $antall = max(1, (int) config('hvamenerpartiet.analyse.kjoringer', 2));
@@ -65,6 +62,42 @@ class Klassifiserer
         return $this->lagre($tema, $program, $kildetype, $this->samle($kjoringer, $setninger) + [
             'modell' => $this->ollama->modell(),
         ]);
+    }
+
+    /**
+     * Prompten modellen ville fått nå, uten å kalle modellen. Brukes i
+     * feilsøkingspakken. Null betyr at gjenfinningen ikke fant noe, og at
+     * standpunktet settes uten LLM-kall.
+     *
+     * @return array{treff: list<Treff>, referanser: array<string, string>, meldinger: list<array{role: string, content: string}>}|null
+     */
+    public function forhandsvis(Tema $tema, Program $program, Kildetype $kildetype): ?array
+    {
+        $treff = $this->gjenfinner->finn($tema, $program, $kildetype);
+
+        if ($treff === []) {
+            return null;
+        }
+
+        $forberedt = $this->forbered($tema, $program, $kildetype, $treff);
+
+        return ['treff' => $treff, 'referanser' => $forberedt['referanser'], 'meldinger' => $forberedt['meldinger']];
+    }
+
+    /**
+     * @param  list<Treff>  $treff
+     * @return array{setninger: Collection<string, Setning>, referanser: array<string, string>, meldinger: list<array{role: string, content: string}>}
+     */
+    private function forbered(Tema $tema, Program $program, Kildetype $kildetype, array $treff): array
+    {
+        $avsnitt = $this->avsnittFraTreff($program, $treff);
+        $setninger = $avsnitt->flatMap->setninger->keyBy('nokkel');
+
+        return [
+            'setninger' => $setninger,
+            'referanser' => self::referanser($setninger),
+            'meldinger' => $this->meldinger($tema, $program, $kildetype, $avsnitt),
+        ];
     }
 
     /**
