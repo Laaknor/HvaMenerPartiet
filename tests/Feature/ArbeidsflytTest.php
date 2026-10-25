@@ -23,16 +23,18 @@ class ArbeidsflytTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $this->assertSame(9, Parti::count());
-        $this->assertSame(15, Program::count());
-        $this->assertSame(2, Program::where('type', 'kombinert')->count());
+        $this->assertSame(15, Program::where('gjeldende', true)->count());
+        $this->assertSame(2, Program::where('gjeldende', true)->where('type', 'kombinert')->count());
+        $this->assertTrue(Program::where('nokkel', 'ap-ap2021')->where('gjeldende', false)->exists());
         $this->assertTrue(Program::where('nokkel', 'sv-pp2023')->exists());
         $this->assertFalse(Parti::where('slug', 'ap')->first()->load('programmer')->harPrinsipprogram());
         $this->assertTrue(Parti::where('slug', 'sp')->first()->load('programmer')->harPrinsipprogram());
         $this->assertGreaterThanOrEqual(6, Tema::count());
 
         // Seederen kan kjøres flere ganger.
+        $antall = Program::count();
         $this->seed(DatabaseSeeder::class);
-        $this->assertSame(15, Program::count());
+        $this->assertSame($antall, Program::count());
     }
 
     public function test_fra_pdf_til_rapport(): void

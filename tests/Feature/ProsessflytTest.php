@@ -165,7 +165,7 @@ class ProsessflytTest extends TestCase
 
         $data = collect(require database_path('data/programmer.php'));
         $this->assertSame($data->count(), Program::count());
-        $this->assertSame($data->where('gjeldende', false)->count(), Program::where('gjeldende', false)->count());
+        $this->assertSame($data->filter(fn ($p) => ($p['gjeldende'] ?? true) === false)->count(), Program::where('gjeldende', false)->count());
         foreach ($data as $p) {
             $this->assertNotNull($p['kildefil'] ?? null, "{$p['parti']} {$p['tittel']} mangler planlagt filsti");
         }
