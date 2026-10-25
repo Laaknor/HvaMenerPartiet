@@ -13,6 +13,8 @@ use RuntimeException;
 /**
  * Finner de mest relevante tekstbitene i ett program for ett tema, med
  * likhetssøk på embeddings kombinert med søk på navn og synonymer.
+ * Biter som bare treffer et forvekslingsord (et nærliggende begrep som
+ * ikke er temaet, som «atomvåpen» for atomkraft), regnes ikke som treff.
  * Likhet regnes i PHP; med noen tusen biter per parti trengs ingen
  * vektordatabase.
  */
@@ -29,6 +31,7 @@ class Gjenfinner
         $terskel = (float) config('hvamenerpartiet.analyse.terskel');
         $antall = (int) config('hvamenerpartiet.analyse.antall_biter');
         $monstre = $this->sokemonstre($tema->sokeord());
+        $forvekslinger = $this->sokemonstre($tema->forvekslingsord());
 
         $biter = $this->biter($program, $kildetype);
         if ($biter->isNotEmpty() && $biter->contains(fn (Tekstbit $b) => $b->embedding === null)) {
@@ -37,8 +40,14 @@ class Gjenfinner
 
         $treff = [];
         foreach ($biter as $bit) {
+            $tekst = $bit->overskriftssti."\n".$bit->tekst;
             $likhet = Vektor::likhet($temavektor, Vektor::pakkUt($bit->embedding));
-            $nokkelord = $this->harNokkelord($bit->overskriftssti."\n".$bit->tekst, $monstre);
+            $nokkelord = $this->harNokkelord($tekst, $monstre);
+
+            // Likheten kommer da trolig fra det nærliggende begrepet, ikke fra temaet.
+            if (! $nokkelord && $this->harNokkelord($tekst, $forvekslinger)) {
+                continue;
+            }
 
             if ($likhet >= $terskel || $nokkelord) {
                 $treff[] = new Treff($bit, $likhet, $nokkelord);

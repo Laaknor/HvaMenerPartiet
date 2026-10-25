@@ -312,6 +312,88 @@ class KlassifiseringTest extends TestCase
         $this->assertFalse($this->ollama->chatkall[0]['think']);
     }
 
+    private function atomprogram(): Program
+    {
+        $parti = Parti::create(['navn' => 'Fredspartiet', 'forkortelse' => 'FP', 'slug' => 'fp']);
+
+        return $this->lagProgram($parti, 'arbeidsprogram', 'fp-ap2025', [
+            new DokumentKapittel('Fred', 1, 2, [new DokumentAvsnitt('Verdens atomvåpenarsenaler er en trussel. Norge skal gå foran for en atomvåpenfri verden.', 2, 2)]),
+            new DokumentKapittel('Energi', 1, 4, [new DokumentAvsnitt('Vi vil utrede små kjernekraftverk.', 4, 4)]),
+        ]);
+    }
+
+    private function atomkraft(array $forvekslinger = ['atomvåpen']): Tema
+    {
+        $tema = Tema::create([
+            'navn' => 'Atomkraft', 'slug' => 'atomkraft', 'pastand' => 'Norge bør åpne for å bygge atomkraftverk.',
+            'synonymer' => ['atomkraft', 'kjernekraft'], 'forvekslinger' => $forvekslinger, 'status' => 'godkjent',
+        ]);
+        app(Embedder::class)->forTema($tema);
+
+        return $tema;
+    }
+
+    public function test_biter_som_bare_treffer_en_forveksling_sendes_ikke_til_modellen(): void
+    {
+        config(['hvamenerpartiet.analyse.terskel' => 0.0]);
+        $program = $this->atomprogram();
+        $this->ollama->chatsvar = [$this->svar('for', ['S1']), $this->svar('for', ['S1'])];
+
+        $s = app(Klassifiserer::class)->klassifiser($this->atomkraft(), $program, Kildetype::Arbeidsprogram);
+
+        $melding = $this->ollama->sisteBrukermelding();
+        $this->assertStringContainsString('kjernekraftverk', $melding);
+        $this->assertStringNotContainsString('atomvåpenarsenaler', $melding);
+        $this->assertStringContainsString('Ikke det samme som: atomvåpen.', $melding);
+        $this->assertSame(Standpunktverdi::For, $s->verdi);
+    }
+
+    public function test_bit_med_bade_tema_og_forveksling_beholdes(): void
+    {
+        config(['hvamenerpartiet.analyse.terskel' => 0.0]);
+        $parti = Parti::create(['navn' => 'Blandpartiet', 'forkortelse' => 'BP', 'slug' => 'bp']);
+        $program = $this->lagProgram($parti, 'arbeidsprogram', 'bp-ap2025', [
+            new DokumentKapittel('Energi', 1, 2, [new DokumentAvsnitt('Kjernekraft er trygt, og har ingenting med atomvåpen å gjøre.', 2, 2)]),
+        ]);
+        $this->ollama->chatsvar = [$this->svar('for', ['S1']), $this->svar('for', ['S1'])];
+
+        app(Klassifiserer::class)->klassifiser($this->atomkraft(), $program, Kildetype::Arbeidsprogram);
+
+        $this->assertStringContainsString('Kjernekraft er trygt', $this->ollama->sisteBrukermelding());
+    }
+
+    public function test_bare_forvekslinger_gir_ikke_omtalt_uten_llm_kall(): void
+    {
+        config(['hvamenerpartiet.analyse.terskel' => 0.0]);
+        $parti = Parti::create(['navn' => 'Fredspartiet', 'forkortelse' => 'FP', 'slug' => 'fp']);
+        $program = $this->lagProgram($parti, 'prinsipprogram', 'fp-pp2023', [
+            new DokumentKapittel('Fred', 1, 2, [new DokumentAvsnitt('Norge skal fordømme atomvåpen og gå foran for en atomvåpenfri verden.', 2, 2)]),
+        ]);
+
+        $s = app(Klassifiserer::class)->klassifiser($this->atomkraft(), $program, Kildetype::Prinsipprogram);
+
+        $this->assertSame(Standpunktverdi::IkkeOmtalt, $s->verdi);
+        $this->assertCount(0, $this->ollama->chatkall);
+    }
+
+    public function test_svar_om_at_teksten_ikke_handler_om_temaet_gir_ikke_omtalt(): void
+    {
+        $this->ollama->chatsvar = [
+            ['handler_om_temaet' => false] + $this->svar('mot', ['S1']),
+            ['handler_om_temaet' => false] + $this->svar('ikke_omtalt', []),
+        ];
+
+        $s = app(Klassifiserer::class)->klassifiser($this->nato, $this->program, Kildetype::Arbeidsprogram);
+
+        $this->assertSame(Standpunktverdi::IkkeOmtalt, $s->verdi);
+        $this->assertFalse($s->uenighet);
+        $this->assertCount(0, $s->kildesetninger);
+        $this->assertFalse($s->kjoringer[0]['handler_om_temaet']);
+        $this->assertStringContainsString('Satt til «ikke_omtalt»', $s->kjoringer[0]['merknad']);
+        $this->assertStringContainsString('1 av 2 kjøringer oppga standpunkt', $s->merknader[0]);
+        $this->assertSame('handler_om_temaet', array_key_first(Klassifiserer::svarskjema()['properties']));
+    }
+
     public function test_adminsiden_viser_kjoringene_med_feil(): void
     {
         $this->ollama->chatsvar = [$this->svar('for', []), $this->svar('for', []), $this->svar('mot', ['S1']), $this->svar('mot', ['S1'])];

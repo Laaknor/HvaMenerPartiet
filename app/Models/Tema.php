@@ -14,7 +14,7 @@ class Tema extends Model
 
     protected $table = 'temaer';
 
-    protected $fillable = ['navn', 'slug', 'beskrivelse', 'pastand', 'synonymer', 'overordnet_tema_id', 'status', 'embedding', 'embeddingmodell'];
+    protected $fillable = ['navn', 'slug', 'beskrivelse', 'pastand', 'synonymer', 'forvekslinger', 'overordnet_tema_id', 'status', 'embedding', 'embeddingmodell'];
 
     protected $hidden = ['embedding'];
 
@@ -22,6 +22,7 @@ class Tema extends Model
     {
         return [
             'synonymer' => 'array',
+            'forvekslinger' => 'array',
             'status' => Temastatus::class,
         ];
     }
@@ -51,6 +52,18 @@ class Tema extends Model
     public function sokeord(): array
     {
         return array_values(array_unique(array_filter([$this->navn, ...($this->synonymer ?? [])])));
+    }
+
+    /**
+     * Nærliggende begreper som lett forveksles med temaet, men som ikke er
+     * det samme (for eksempel «atomvåpen» for atomkraft). Tas ikke med i
+     * embeddingen, så de ikke trekker likhetssøket mot seg.
+     *
+     * @return list<string>
+     */
+    public function forvekslingsord(): array
+    {
+        return array_values(array_unique(array_filter(array_map('trim', $this->forvekslinger ?? []))));
     }
 
     /** Teksten som sendes til embeddingmodellen for gjenfinning. */

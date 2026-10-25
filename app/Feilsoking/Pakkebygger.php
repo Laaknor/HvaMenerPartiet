@@ -193,6 +193,7 @@ class Pakkebygger
             'pastand' => $tema->pastand,
             'beskrivelse' => $tema->beskrivelse,
             'synonymer' => $tema->synonymer ?? [],
+            'forvekslinger' => $tema->forvekslinger ?? [],
             'har_embedding' => $tema->embedding !== null,
             'embeddingmodell' => $tema->embeddingmodell,
         ];

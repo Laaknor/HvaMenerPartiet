@@ -28,4 +28,14 @@ class GjenfinnerTest extends TestCase
         $this->assertTrue($g->harNokkelord('Atomkraft er ikke aktuelt', $m));
         $this->assertFalse($g->harNokkelord('Motstand mot fornybar kraft', $m));
     }
+
+    public function test_forvekslinger_matcher_sammensatte_ord(): void
+    {
+        $g = new Gjenfinner;
+        $m = $g->sokemonstre(['atomvåpen', 'eierbeskatning']);
+
+        $this->assertTrue($g->harNokkelord('Verdens atomvåpenarsenaler utgjør en trussel', $m));
+        $this->assertTrue($g->harNokkelord('Eierbeskatningen i Norge er for høy', $m));
+        $this->assertFalse($g->harNokkelord('Vi vil bygge atomkraftverk', $m));
+    }
 }

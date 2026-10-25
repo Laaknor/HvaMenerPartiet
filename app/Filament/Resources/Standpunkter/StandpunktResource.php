@@ -113,6 +113,10 @@ class StandpunktResource extends Resource
                             TextEntry::make('kildesetninger')->label('Kilder')->listWithLineBreaks()->placeholder('Ingen'),
                             TextEntry::make('gyldig')->formatStateUsing(fn ($state) => $state ? 'Gyldig' : 'Ugyldig')->badge()
                                 ->color(fn ($state) => $state ? 'success' : 'danger'),
+                            TextEntry::make('handler_om_temaet')->label('Handler om temaet')
+                                ->formatStateUsing(fn ($state) => is_bool($state) ? ($state ? 'Ja' : 'Nei') : '–')
+                                ->placeholder('–'),
+                            TextEntry::make('merknad')->placeholder('–')->columnSpan(3),
                             TextEntry::make('feil')->placeholder('–')->columnSpanFull(),
                             TextEntry::make('ugyldige_kilder')->label('Ugyldige kilder')->listWithLineBreaks()->placeholder('Ingen')->columnSpanFull(),
                             TextEntry::make('rasvar')->label('Råsvar')

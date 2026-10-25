@@ -61,6 +61,10 @@ class TemaResource extends Resource
                 ->required()->maxLength(500)->columnSpanFull(),
             Textarea::make('beskrivelse')->rows(2)->columnSpanFull(),
             TagsInput::make('synonymer')->helperText('Brukes i nøkkelordsøket i programtekstene.')->columnSpanFull(),
+            TagsInput::make('forvekslinger')
+                ->label('Ikke det samme som')
+                ->helperText('Nærliggende begreper som lett forveksles med temaet, for eksempel «atomvåpen» for atomkraft. Avsnitt som bare treffer disse, sendes ikke til modellen, og modellen får beskjed om at de ikke tar stilling til påstanden.')
+                ->columnSpanFull(),
             Select::make('status')->options(Temastatus::class)->default(Temastatus::Foreslatt)->required()
                 ->helperText('Godkjente temaer klassifiseres av seg selv mot alle godkjente programmer.'),
         ]);
