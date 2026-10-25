@@ -99,6 +99,27 @@ class StandpunktResource extends Resource
                     ])
                     ->placeholder('Ingen kildesetninger'),
             ]),
+            Section::make('Kjøringer')
+                ->description('Svaret fra modellen i hver kjøring. Ugyldige svar viser feilen og råsvaret.')
+                ->collapsed(fn (Standpunkt $record) => ! $record->uenighet)
+                ->schema([
+                    RepeatableEntry::make('kjoringer')
+                        ->hiddenLabel()
+                        ->columns(4)
+                        ->schema([
+                            TextEntry::make('verdi')->label('Standpunkt')->placeholder('–'),
+                            TextEntry::make('sikkerhet')->placeholder('–'),
+                            TextEntry::make('kildesetninger')->label('Kilder')->listWithLineBreaks()->placeholder('Ingen'),
+                            TextEntry::make('gyldig')->formatStateUsing(fn ($state) => $state ? 'Gyldig' : 'Ugyldig')->badge()
+                                ->color(fn ($state) => $state ? 'success' : 'danger'),
+                            TextEntry::make('feil')->placeholder('–')->columnSpanFull(),
+                            TextEntry::make('ugyldige_kilder')->label('Ugyldige kilder')->listWithLineBreaks()->placeholder('Ingen')->columnSpanFull(),
+                            TextEntry::make('rasvar')->label('Råsvar')
+                                ->formatStateUsing(fn ($state) => is_array($state) ? json_encode($state, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : (string) $state)
+                                ->placeholder('–')->columnSpanFull(),
+                        ])
+                        ->placeholder('Ingen kjøringer (satt uten LLM-kall)'),
+                ]),
         ]);
     }
 

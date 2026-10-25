@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\DB;
  */
 class Klassifiserer
 {
-    public const PROMPT_VERSJON = 'v1-2026-10';
+    public const PROMPT_VERSJON = 'v2-2026-10';
 
     public function __construct(
         private OllamaKlient $ollama,
@@ -53,12 +53,13 @@ class Klassifiserer
 
         $avsnitt = $this->avsnittFraTreff($program, $treff);
         $setninger = $avsnitt->flatMap->setninger->keyBy('nokkel');
+        $referanser = self::referanser($setninger);
         $meldinger = $this->meldinger($tema, $program, $kildetype, $avsnitt);
 
         $kjoringer = [];
         $antall = max(1, (int) config('hvamenerpartiet.analyse.kjoringer', 2));
         for ($i = 0; $i < $antall; $i++) {
-            $kjoringer[] = $this->kjor($meldinger, $setninger, $i);
+            $kjoringer[] = $this->kjor($meldinger, $setninger, $referanser, $i);
         }
 
         return $this->lagre($tema, $program, $kildetype, $this->samle($kjoringer, $setninger) + [
@@ -107,7 +108,9 @@ Du er en nøytral analytiker som leser norske partiprogrammer. Du skal avgjøre 
 Regler:
 - Bruk bare teksten du får. Ikke bruk egen kunnskap om partier eller politikk.
 - Vurder bare det teksten faktisk sier, ikke hva partiet «egentlig» mener.
-- Hver setning har en ID i hakeparentes. Oppgi ID-ene til de setningene som best begrunner standpunktet, høyst fem, og bare ID-er som står i teksten.
+- Hver setning har en kort ID i hakeparentes, som [S3]. I "kildesetninger" oppgir du ID-ene til de setningene som best begrunner standpunktet, for eksempel ["S3", "S4"]. Høyst fem, og bare ID-er som står i teksten.
+- Er standpunktet noe annet enn "ikke_omtalt", skal du alltid oppgi minst én ID.
+- En tekst som sier at noe er viktig, nødvendig eller en forutsetning, støtter påstanden selv om den ikke gjentar påstanden ordrett.
 
 Standpunkt, målt mot påstanden:
 - "for": teksten støtter påstanden tydelig.
@@ -126,14 +129,15 @@ TEKST;
         };
 
         $anonymiser = $this->anonymiserer($program);
+        $referanser = array_flip(self::referanser($avsnitt->flatMap->setninger->keyBy('nokkel')));
 
-        $utdrag = $avsnitt->groupBy('kapittel_id')->map(function (Collection $avsnittene) use ($anonymiser) {
+        $utdrag = $avsnitt->groupBy('kapittel_id')->map(function (Collection $avsnittene) use ($anonymiser, $referanser) {
             /** @var Avsnitt $forste */
             $forste = $avsnittene->first();
             $linjer = ['### '.$anonymiser($forste->kapittel->overskriftssti()).($forste->side ? " (side {$forste->side})" : '')];
             foreach ($avsnittene as $a) {
                 foreach ($a->setninger as $s) {
-                    $linjer[] = "[{$s->nokkel}] ".($s->er_punkt ? '• ' : '').$anonymiser($s->tekst);
+                    $linjer[] = "[{$referanser[$s->nokkel]}] ".($s->er_punkt ? '• ' : '').$anonymiser($s->tekst);
                 }
                 $linjer[] = '';
             }
@@ -193,32 +197,103 @@ TEKST;
     }
 
     /**
+     * Korte ID-er (S1, S2, ...) i stedet for de faste ID-ene. Lange ID-er som
+     * «sp-kp2025-k12-a4-s3» er vanskelige å gjengi riktig for mindre modeller.
+     *
+     * @param  Collection<string, Setning>  $setninger
+     * @return array<string, string> kort ID => fast ID
+     */
+    public static function referanser(Collection $setninger): array
+    {
+        $referanser = [];
+        foreach ($setninger->keys()->values() as $i => $nokkel) {
+            $referanser['S'.($i + 1)] = $nokkel;
+        }
+
+        return $referanser;
+    }
+
+    /**
+     * Gjør modellens ID om til en fast setnings-ID. Tåler «S3», «[S3]», «s3»,
+     * «3» og den faste ID-en.
+     *
+     * @param  Collection<string, Setning>  $setninger
+     * @param  array<string, string>  $referanser
+     */
+    public static function tolkReferanse(mixed $id, Collection $setninger, array $referanser): ?string
+    {
+        if (! is_string($id) && ! is_int($id)) {
+            return null;
+        }
+
+        $id = trim((string) $id, " \t\n\r\"'[]()«»");
+        if ($setninger->has($id)) {
+            return $id;
+        }
+        if (preg_match('/^s?\s*(\d+)$/i', $id, $m)) {
+            return $referanser['S'.(int) $m[1]] ?? null;
+        }
+
+        return null;
+    }
+
+    /**
      * Én kjøring. Første kjøring er deterministisk; de neste bruker litt
-     * temperatur og et annet frø, så uenighet kan oppdages.
+     * temperatur og et annet frø, så uenighet kan oppdages. Mangler svaret
+     * gyldige kildesetninger, får modellen ett nytt forsøk med beskjed om det.
      *
      * @param  list<array{role: string, content: string}>  $meldinger
      * @param  Collection<string, Setning>  $setninger
+     * @param  array<string, string>  $referanser
      * @return array<string, mixed>
      */
-    private function kjor(array $meldinger, Collection $setninger, int $nr): array
+    private function kjor(array $meldinger, Collection $setninger, array $referanser, int $nr): array
+    {
+        $valg = ['temperature' => $nr === 0 ? 0 : 0.4, 'seed' => 1000 + $nr];
+
+        $kjoring = $this->sporModellen($meldinger, $setninger, $referanser, $valg);
+
+        if (! $kjoring['gyldig'] && ($kjoring['feil'] ?? '') === 'Ingen gyldige kildesetninger') {
+            $meldinger[] = ['role' => 'assistant', 'content' => json_encode($kjoring['svar'] ?? [], JSON_UNESCAPED_UNICODE)];
+            $meldinger[] = ['role' => 'user', 'content' => 'Svaret mangler gyldige ID-er i "kildesetninger". Svar på nytt med de samme feltene, og oppgi ID-ene (som "S3") til setningene i teksten som begrunner standpunktet.'];
+            $nytt = $this->sporModellen($meldinger, $setninger, $referanser, $valg);
+            $nytt['nytt_forsok'] = true;
+            $kjoring = $nytt;
+        }
+
+        unset($kjoring['svar']);
+
+        return $kjoring;
+    }
+
+    /**
+     * @param  list<array{role: string, content: string}>  $meldinger
+     * @param  Collection<string, Setning>  $setninger
+     * @param  array<string, string>  $referanser
+     * @param  array<string, mixed>  $valg
+     * @return array<string, mixed>
+     */
+    private function sporModellen(array $meldinger, Collection $setninger, array $referanser, array $valg): array
     {
         try {
-            $svar = $this->ollama->chatJson($meldinger, self::svarskjema(), [
-                'temperature' => $nr === 0 ? 0 : 0.4,
-                'seed' => 1000 + $nr,
-            ]);
+            $svar = $this->ollama->chatJson($meldinger, self::svarskjema(), $valg);
         } catch (UgyldigSvar $e) {
             return ['gyldig' => false, 'feil' => $e->getMessage()];
         }
 
-        $verdi = Standpunktverdi::tryFrom((string) ($svar['standpunkt'] ?? ''));
+        $verdi = Standpunktverdi::tryFrom(mb_strtolower(trim((string) ($svar['standpunkt'] ?? ''))));
         if ($verdi === null) {
-            return ['gyldig' => false, 'feil' => 'Ukjent standpunkt', 'svar' => $svar];
+            return ['gyldig' => false, 'feil' => 'Ukjent standpunkt', 'svar' => $svar, 'rasvar' => $svar];
         }
 
-        $oppgitt = array_values(array_filter((array) ($svar['kildesetninger'] ?? []), 'is_string'));
-        $gyldige = array_values(array_filter($oppgitt, fn ($n) => $setninger->has($n)));
-        $ugyldige = array_values(array_diff($oppgitt, $gyldige));
+        $oppgitt = array_values((array) ($svar['kildesetninger'] ?? []));
+        $gyldige = [];
+        $ugyldige = [];
+        foreach ($oppgitt as $id) {
+            $nokkel = self::tolkReferanse($id, $setninger, $referanser);
+            $nokkel !== null ? $gyldige[] = $nokkel : $ugyldige[] = is_scalar($id) ? (string) $id : json_encode($id);
+        }
+        $gyldige = array_values(array_unique($gyldige));
 
         if ($verdi === Standpunktverdi::IkkeOmtalt) {
             $gyldige = [];
@@ -231,12 +306,14 @@ TEKST;
             'kildesetninger' => $gyldige,
             'ugyldige_kilder' => $ugyldige,
             'begrunnelse' => trim((string) ($svar['begrunnelse'] ?? '')),
+            'svar' => $svar,
         ];
 
         // Et standpunkt uten gyldige kilder kan ikke vises med ordrett sitat.
         if ($verdi->omtaler() && $gyldige === []) {
             $kjoring['gyldig'] = false;
             $kjoring['feil'] = 'Ingen gyldige kildesetninger';
+            $kjoring['rasvar'] = $svar;
         }
 
         return $kjoring;
