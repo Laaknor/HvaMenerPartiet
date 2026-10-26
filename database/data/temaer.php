@@ -3,6 +3,9 @@
 /*
 | Temaene for prototypen i fase 1. Hvert tema har en nøytralt formulert
 | påstand som standpunktet måles mot, og synonymer for nøkkelordsøk.
+| «forvekslinger» er nærliggende begreper som ikke er temaet. Avsnitt som
+| bare treffer dem, sendes ikke til modellen, og modellen får beskjed om at
+| de ikke tar stilling til påstanden.
 | Senere foreslås temaene av LLM-en og godkjennes i admin.
 */
 
@@ -34,13 +37,15 @@ return [
         'beskrivelse' => 'Kommunal skatt på bolig og annen fast eiendom.',
         'pastand' => 'Kommunene bør kunne kreve eiendomsskatt på bolig.',
         'synonymer' => ['eiendomsskatt', 'eiendomsskatten', 'boligskatt', 'skatt på bolig'],
+        'forvekslinger' => ['formuesskatt', 'formuesbeskatning', 'skatt på formue', 'eierbeskatning', 'eierskatt', 'arveavgift', 'utbytteskatt', 'skatt på utbytte'],
     ],
     [
         'slug' => 'formuesskatt',
         'navn' => 'Formuesskatt',
         'beskrivelse' => 'Skatt på formue over bunnfradraget.',
         'pastand' => 'Formuesskatten bør reduseres eller fjernes.',
-        'synonymer' => ['formuesskatt', 'formuesskatten', 'formuesbeskatning', 'skatt på formue', 'arbeidende kapital'],
+        'synonymer' => ['formuesskatt', 'formuesskatten', 'formuesbeskatning', 'skatt på formue', 'arbeidende kapital', 'eierbeskatning'],
+        'forvekslinger' => ['eiendomsskatt', 'boligskatt'],
     ],
     [
         'slug' => 'oljeleting',
@@ -55,5 +60,6 @@ return [
         'beskrivelse' => 'Kjernekraft som energikilde i Norge.',
         'pastand' => 'Norge bør åpne for å bygge atomkraftverk.',
         'synonymer' => ['atomkraft', 'kjernekraft', 'kjernekraftverk', 'atomkraftverk', 'SMR', 'thorium'],
+        'forvekslinger' => ['atomvåpen', 'kjernevåpen', 'masseødeleggelsesvåpen'],
     ],
 ];

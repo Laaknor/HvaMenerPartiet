@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\DB;
  */
 class Klassifiserer
 {
-    public const PROMPT_VERSJON = 'v2-2026-10';
+    public const PROMPT_VERSJON = 'v3-2026-10';
 
     public function __construct(
         private OllamaKlient $ollama,
@@ -144,6 +144,9 @@ Regler:
 - Hver setning har en kort ID i hakeparentes, som [S3]. I "kildesetninger" oppgir du ID-ene til de setningene som best begrunner standpunktet, for eksempel ["S3", "S4"]. Høyst fem, og bare ID-er som står i teksten.
 - Er standpunktet noe annet enn "ikke_omtalt", skal du alltid oppgi minst én ID.
 - En tekst som sier at noe er viktig, nødvendig eller en forutsetning, støtter påstanden selv om den ikke gjentar påstanden ordrett.
+- Teksten må handle om selve temaet. Et nærliggende, men annet tema tar ikke stilling til påstanden, selv om ordene ligner. For eksempel handler skatt på formue ikke om skatt på bolig, og våpen handler ikke om energi.
+- Ikke utled et standpunkt fra generelle holdninger, som at skattene er for høye eller at fred er viktig, når teksten ikke nevner temaet.
+- Svar først på "handler_om_temaet": true bare hvis minst én setning handler om selve temaet. Er svaret false, skal standpunktet være "ikke_omtalt".
 
 Standpunkt, målt mot påstanden:
 - "for": teksten støtter påstanden tydelig.
@@ -182,7 +185,11 @@ TEKST;
         if ($tema->beskrivelse) {
             $bruker .= "Beskrivelse: {$tema->beskrivelse}\n";
         }
-        $bruker .= "Påstand: «{$tema->pastand}»\n\n";
+        $bruker .= "Påstand: «{$tema->pastand}»\n";
+        if ($forvekslinger = $tema->forvekslingsord()) {
+            $bruker .= 'Ikke det samme som: '.implode(', ', $forvekslinger).". Tekst som bare handler om dette, tar ikke stilling til påstanden.\n";
+        }
+        $bruker .= "\n";
         $bruker .= "Teksten under er utdrag fra {$programbeskrivelse}. Partinavnet er erstattet med «Partiet».\n\n{$utdrag}\n";
         $bruker .= 'Hva er programmets standpunkt til påstanden?';
 
@@ -220,12 +227,15 @@ TEKST;
         return [
             'type' => 'object',
             'properties' => [
+                // Først, så modellen tar stilling til om teksten handler om
+                // temaet før den velger standpunkt.
+                'handler_om_temaet' => ['type' => 'boolean'],
                 'standpunkt' => ['type' => 'string', 'enum' => Standpunktverdi::verdier()],
                 'sikkerhet' => ['type' => 'string', 'enum' => ['høy', 'middels', 'lav']],
                 'kildesetninger' => ['type' => 'array', 'items' => ['type' => 'string']],
                 'begrunnelse' => ['type' => 'string'],
             ],
-            'required' => ['standpunkt', 'sikkerhet', 'kildesetninger', 'begrunnelse'],
+            'required' => ['handler_om_temaet', 'standpunkt', 'sikkerhet', 'kildesetninger', 'begrunnelse'],
         ];
     }
 
@@ -319,6 +329,14 @@ TEKST;
             return ['gyldig' => false, 'feil' => 'Ukjent standpunkt', 'svar' => $svar, 'rasvar' => $svar];
         }
 
+        // Sier modellen selv at teksten ikke handler om temaet, kan den ikke
+        // samtidig ha et standpunkt. Mangler feltet, brukes standpunktet.
+        $overstyrt = false;
+        if ($verdi->omtaler() && ($svar['handler_om_temaet'] ?? null) === false) {
+            $verdi = Standpunktverdi::IkkeOmtalt;
+            $overstyrt = true;
+        }
+
         $oppgitt = array_values((array) ($svar['kildesetninger'] ?? []));
         $gyldige = [];
         $ugyldige = [];
@@ -334,6 +352,7 @@ TEKST;
 
         $kjoring = [
             'gyldig' => true,
+            'handler_om_temaet' => is_bool($svar['handler_om_temaet'] ?? null) ? $svar['handler_om_temaet'] : null,
             'verdi' => $verdi->value,
             'sikkerhet' => Sikkerhet::fraModell((string) ($svar['sikkerhet'] ?? 'lav'))->value,
             'kildesetninger' => $gyldige,
@@ -341,6 +360,10 @@ TEKST;
             'begrunnelse' => trim((string) ($svar['begrunnelse'] ?? '')),
             'svar' => $svar,
         ];
+
+        if ($overstyrt) {
+            $kjoring['merknad'] = 'Modellen svarte at teksten ikke handler om temaet, men oppga «'.mb_strtolower(trim((string) $svar['standpunkt'])).'». Satt til «ikke_omtalt».';
+        }
 
         // Et standpunkt uten gyldige kilder kan ikke vises med ordrett sitat.
         if ($verdi->omtaler() && $gyldige === []) {
@@ -380,6 +403,11 @@ TEKST;
                 'merknader' => $merknader,
                 'kilder' => collect(),
             ];
+        }
+
+        $overstyrte = count(array_filter($gyldige, fn ($k) => isset($k['merknad'])));
+        if ($overstyrte) {
+            $merknader[] = "{$overstyrte} av ".count($kjoringer).' kjøringer oppga standpunkt, men svarte at teksten ikke handler om temaet. Satt til «Ikke omtalt».';
         }
 
         $verdier = array_unique(array_column($gyldige, 'verdi'));

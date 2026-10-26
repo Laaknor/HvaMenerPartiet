@@ -67,7 +67,7 @@ return [
     ],
     [
         'parti' => 'rodt', 'type' => 'prinsipprogram', 'tittel' => 'Prinsipprogram', 'vedtatt_ar' => 2019,
-        'kildefil' => 'Stortingsprogram 2025-2029/Rodt-prinsipprogram-2019-bokmal.pdf',
+        'kildefil' => 'Stortingsprogram 2025-2029/Rodt - prinsipprogram2019.pdf',
         'kilde_url' => 'https://roedt.no/fil/f60b95dfc54397a984de84cd600dbbedd2bf8745.pdf?dl=',
         'kilde_side' => 'https://roedt.no/styringsdokumenter',
     ],
