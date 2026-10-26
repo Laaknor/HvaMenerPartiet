@@ -16,13 +16,14 @@ class Tema extends Model
 
     protected $fillable = ['navn', 'slug', 'beskrivelse', 'pastand', 'synonymer', 'forvekslinger', 'overordnet_tema_id', 'status', 'embedding', 'embeddingmodell'];
 
-    protected $hidden = ['embedding'];
+    protected $hidden = ['embedding', 'seedverdier'];
 
     protected function casts(): array
     {
         return [
             'synonymer' => 'array',
             'forvekslinger' => 'array',
+            'seedverdier' => 'array',
             'status' => Temastatus::class,
         ];
     }
