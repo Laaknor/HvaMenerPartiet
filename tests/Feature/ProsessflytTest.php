@@ -70,6 +70,14 @@ class ProsessflytTest extends TestCase
         $this->assertSame([], app(Programmappe::class)->utenProgram());
     }
 
+    public function test_sikt_arkivet_regnes_ikke_som_filer_uten_program(): void
+    {
+        $mappe = app(Programmappe::class);
+
+        $this->assertTrue($mappe->erSiktArkiv('Lokalvalgprogram 2023-2027/Folkets-Parti-program-2023-sikt10475.pdf'));
+        $this->assertFalse($mappe->erSiktArkiv('Stortingsprogram 2025-2029/Rodt-prinsipprogram-2019-bokmal.pdf'));
+    }
+
     public function test_flyten_gar_av_seg_selv_fram_til_gjennomgang_og_videre_etter_godkjenning(): void
     {
         $this->krevPdftotext();
