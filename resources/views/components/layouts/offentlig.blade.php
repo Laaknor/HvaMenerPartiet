@@ -43,6 +43,7 @@
             <a href="{{ route('forside') }}" class="topp__logo" aria-label="HvaMenerPartiet.no, til forsiden"><x-logo /></a>
             <nav class="topp__meny" aria-label="Hovedmeny">
                 <a href="{{ route('temaer') }}" @class(['aktiv' => request()->routeIs('temaer', 'tema')])>Temaer</a>
+                <a href="{{ route('partier') }}" @class(['aktiv' => request()->routeIs('partier', 'parti')])>Partiene</a>
                 <a href="{{ route('programmer') }}" @class(['aktiv' => request()->routeIs('programmer', 'program', 'program.*')])>Programmene</a>
                 <a href="{{ route('om') }}" @class(['aktiv' => request()->routeIs('om')])>Om og metode</a>
             </nav>
@@ -72,6 +73,7 @@
             </div>
             <ul class="bunn__lenker">
                 <li><a href="{{ route('om') }}">Om og metode</a></li>
+                <li><a href="{{ route('partier') }}">Partiene</a></li>
                 <li><a href="{{ route('programmer') }}">Partiprogrammene</a></li>
                 <li><a href="{{ url('llms-full.txt') }}">Alle standpunkt som tekst</a></li>
                 <li><a href="{{ config('seo.kildekode') }}">Åpen kildekode (MIT)</a></li>

@@ -67,7 +67,11 @@ class Standpunkt extends Model
      */
     public function utdragssetninger(): Collection
     {
-        return $this->kildesetninger->take((int) config('hvamenerpartiet.analyse.utdrag_setninger', 3));
+        // Samme setning kan stå flere steder i et program. Den siteres én gang.
+        return $this->kildesetninger
+            ->unique(fn (Setning $s) => mb_strtolower(preg_replace('/\s+/u', ' ', trim($s->tekst))))
+            ->take((int) config('hvamenerpartiet.analyse.utdrag_setninger', 3))
+            ->values();
     }
 
     public function utdrag(): string

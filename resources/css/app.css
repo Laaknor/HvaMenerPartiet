@@ -117,7 +117,8 @@
     .topp { background: var(--flate); border-bottom: 1px solid var(--linje); }
     .topp__innhold { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.5rem; padding-block: .85rem; }
     .topp__logo { text-decoration: none; }
-    .topp__meny { display: flex; gap: 1.1rem; font-size: .95rem; }
+    .topp__meny { display: flex; flex-wrap: wrap; gap: .2rem 1.1rem; font-size: .95rem; }
+    .topp__meny a { white-space: nowrap; }
     .topp__meny a { color: var(--dempet); text-decoration: none; padding-block: .25rem; border-bottom: 2px solid transparent; }
     .topp__meny a:hover, .topp__meny a.aktiv { color: var(--blekk); border-bottom-color: var(--aksent); }
     .topp__sok { min-width: 0; flex: 1 1 18rem; max-width: 26rem; margin-left: auto; }
@@ -178,13 +179,6 @@
     }
     .brikke:hover { border-color: var(--aksent); }
 
-    .steg { list-style: none; padding: 0; margin: 0 0 1.5rem; display: grid; gap: 1rem; counter-reset: steg; }
-    @media (min-width: 720px) { .steg { grid-template-columns: repeat(3, 1fr); } }
-    .steg li { background: var(--flate); border: 1px solid var(--linje); border-radius: var(--radius); padding: 1.1rem 1.25rem; counter-increment: steg; }
-    .steg li::before { content: counter(steg); display: inline-grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: var(--blekk); color: var(--flate); font-weight: 600; font-size: .9rem; }
-    .steg h3 { margin: .6rem 0 .3rem; font-size: 1.05rem; }
-    .steg p { margin: 0; color: var(--dempet); font-size: .97rem; }
-
     .skala { display: grid; gap: .5rem; margin: 0; }
     @media (min-width: 720px) { .skala { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); } }
     .skala div { display: flex; flex-direction: column; gap: .3rem; }
@@ -209,7 +203,9 @@
         display: flex; flex-direction: column; gap: .15rem; padding: .8rem 1rem .8rem 1.1rem; background: var(--flate);
         border: 1px solid var(--linje); border-left: 5px solid var(--partifarge); border-radius: 10px; font-size: .95rem;
     }
-    .partiliste__navn { font-weight: 600; color: var(--blekk); }
+    .partiliste__navn { font-weight: 600; color: var(--blekk) !important; }
+    a.partiliste__navn { text-decoration: none; }
+    a.partiliste__navn:hover { text-decoration: underline; }
     .partiliste__navn abbr { color: var(--dempet); font-weight: 500; margin-left: .25rem; }
 
     /* Merkelapper */
@@ -223,68 +219,137 @@
     .merkelapp--delt-uklart { background: var(--delt); color: var(--delt-tekst); }
     .merkelapp--ikke-omtalt, .merkelapp--ingen { background: var(--ikke); color: var(--ikke-tekst); }
     .merkelapp--ingen { background: transparent; border: 1px dashed var(--dempet); }
+    .merkelapp--ikke-vurdert { background: transparent; color: var(--dempet); border: 1px dashed var(--dempet); }
+    .merkelapp--liten { font-size: .75rem; padding: .3rem .55rem; }
+    .knapp--liten { font-size: .88rem; padding: .35rem .85rem; }
 
     /* Temaside */
     .sti { margin-top: 1.5rem; font-size: .92rem; color: var(--dempet); display: flex; gap: .4rem; flex-wrap: wrap; }
     .sti a { color: var(--dempet); }
     .temahode h1 { font-size: clamp(1.9rem, 4.5vw, 2.7rem); margin: .5rem 0 .5rem; letter-spacing: -0.02em; }
     .temahode__beskrivelse { color: var(--dempet); margin: 0 0 1rem; max-width: 44rem; }
-    .pastand { background: var(--flate); border: 1px solid var(--linje); border-left: 4px solid var(--aksent); border-radius: 10px; padding: .8rem 1.1rem; max-width: 44rem; }
-    .pastand__etikett { font-size: .85rem; color: var(--dempet); }
-    .pastand__tekst { margin: .15rem 0 0; font-size: 1.15rem; font-weight: 600; color: var(--blekk); }
+    .pastand { margin: 0; color: var(--dempet); max-width: 48rem; }
+    .pastand__etikett { margin-right: .35rem; }
+    .pastand__tekst { color: var(--blekk); font-weight: 600; }
+    .visningsnotis { margin: .75rem 0 0; font-size: .93rem; color: var(--dempet); }
 
-    .fordeling { display: flex; flex-wrap: wrap; gap: .5rem 1.1rem; margin: 1.5rem 0 0; font-size: .95rem; color: var(--dempet); }
-    .fordeling__del { display: inline-flex; align-items: center; gap: .4rem; }
-
-    .faner { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: 1.75rem; border-bottom: 1px solid var(--linje); }
-    .faner a { padding: .5rem .9rem; text-decoration: none; color: var(--dempet); border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: .95rem; }
-    .faner a:hover { color: var(--blekk); }
-    .faner a[aria-current] { color: var(--blekk); border-bottom-color: var(--aksent); font-weight: 600; }
-    .faner__forklaring { font-size: .9rem; color: var(--dempet); margin: .6rem 0 1.25rem; max-width: 50rem; }
-
-    .kortliste { display: grid; gap: 1rem; }
-    @media (min-width: 720px) { .kortliste { grid-template-columns: repeat(2, 1fr); } }
-    @media (min-width: 1080px) { .kortliste { grid-template-columns: repeat(3, 1fr); } }
-
-    .partikort {
-        position: relative; display: flex; flex-direction: column; gap: .6rem; padding: 1.1rem 1.2rem 1rem 1.35rem;
-        background: var(--flate); border: 1px solid var(--linje); border-radius: var(--radius); overflow: hidden;
+    /* Svaret først: hvem som står hvor */
+    .svar { margin-top: 1.5rem; }
+    .fordelingsstang { display: flex; gap: 2px; height: .65rem; border-radius: 999px; overflow: hidden; margin-bottom: 1rem; }
+    .fordelingsstang__del { display: block; flex-basis: 0; padding: 0; border-radius: 0; }
+    .fordelingsstang__del--ikke-vurdert { background: repeating-linear-gradient(45deg, var(--linje) 0 4px, transparent 4px 8px); }
+    .svar__grupper { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); }
+    .svar__gruppe { background: var(--flate); border: 1px solid var(--linje); border-radius: var(--radius); padding: .7rem .8rem .8rem; }
+    .svar__gruppe--ikke-vurdert { background: transparent; border-style: dashed; }
+    .svar__tittel { margin: 0 0 .5rem; font-size: 1rem; display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    .svar__antall { font-size: .85rem; font-weight: 500; color: var(--dempet); }
+    .svar__hjelp { margin: .6rem 0 0; font-size: .88rem; }
+    .partibrikker { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .35rem; }
+    .partibrikke {
+        display: inline-block; padding: .2rem .55rem .2rem .5rem; border-radius: 6px; font-size: .88rem; font-weight: 600;
+        background: var(--bakgrunn); color: var(--blekk) !important; text-decoration: none; border-left: 4px solid var(--partifarge);
     }
-    .partikort::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--partifarge); }
-    .partikort:target { box-shadow: 0 0 0 3px var(--aksent-lys); }
-    .partikort__hode { display: flex; justify-content: space-between; align-items: flex-start; gap: .75rem; }
-    .partikort__parti { font-size: 1.08rem; margin: 0; }
-    .partikort__parti abbr { color: var(--dempet); font-weight: 500; font-size: .9rem; margin-left: .2rem; }
-    .partikort__merkelapper { display: flex; flex-direction: column; align-items: flex-end; gap: .3rem; }
-    .partikort__merknad { margin: 0; font-size: .88rem; font-weight: 600; color: var(--aksent); }
-    .partikort__tom { margin: 0; color: var(--dempet); font-style: italic; font-size: .95rem; }
-    .partikort__fot { margin-top: auto; display: flex; flex-wrap: wrap; justify-content: space-between; gap: .3rem 1rem; font-size: .88rem; color: var(--dempet); }
-    .partikort__fot p { margin: 0; }
+    a.partibrikke:hover { background: var(--aksent-flate); }
+    .partibrikke--stiplet { color: var(--dempet) !important; border: 1px dashed var(--linje); border-left: 4px solid var(--linje); background: transparent; }
 
-    .utdrag { margin: 0; padding: 0 0 0 .85rem; border-left: 2px solid var(--linje); color: var(--tekst); }
-    .utdrag p { margin: 0; }
-    .utdrag--liten { font-size: .95rem; }
-    .kilde { margin: 0; font-size: .88rem; color: var(--dempet); display: flex; flex-wrap: wrap; gap: .2rem .75rem; }
-    .kilde a { font-weight: 600; }
-    .prinsipielt__etikett { font-weight: 600; color: var(--tekst); }
-
-    .sikkerhet { display: inline-flex; align-items: center; gap: .4rem; }
-    .sikkerhet__prikker { display: inline-flex; gap: 3px; }
-    .sikkerhet__prikker i { width: 7px; height: 7px; border-radius: 50%; background: var(--linje); }
-    .sikkerhet--lav .sikkerhet__prikker i:nth-child(-n+1),
-    .sikkerhet--middels .sikkerhet__prikker i:nth-child(-n+2),
-    .sikkerhet--hoy .sikkerhet__prikker i { background: var(--blekk); }
-
-    .vismer { border-top: 1px solid var(--linje); padding-top: .5rem; font-size: .93rem; }
-    .vismer summary { cursor: pointer; color: var(--aksent); font-weight: 600; }
-    .vismer__innhold { display: flex; flex-direction: column; gap: .6rem; padding-top: .6rem; }
-    .vismer h3 { font-size: .95rem; margin: 0; }
-    .vismer p { margin: 0; }
-    .meldfra { display: flex; flex-direction: column; gap: .4rem; margin-top: .4rem; }
-    .meldfra textarea {
-        font: inherit; color: var(--tekst); background: var(--bakgrunn); border: 1px solid var(--linje); border-radius: 10px; padding: .5rem .7rem; resize: vertical;
+    /* Hva partiene skriver: én rad per parti */
+    .seksjon--tett { margin-top: 2.25rem; }
+    .gruppetittel { margin: 1.5rem 0 .5rem; font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--dempet); }
+    .partirader { display: grid; gap: .45rem; }
+    .partirad {
+        position: relative; background: var(--flate); border: 1px solid var(--linje); border-radius: 10px; overflow: hidden;
+        scroll-margin-top: 1rem;
     }
-    .meldfra .knapp { align-self: flex-start; font-size: .9rem; padding: .4rem .9rem; }
+    .partirad::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--partifarge); }
+    .partirad:target, .partirad[open] { border-color: var(--aksent-lys); }
+    .partirad:target { box-shadow: 0 0 0 3px var(--aksent-lys); }
+    .partirad__sammendrag {
+        list-style: none; cursor: pointer; display: grid; gap: .25rem .9rem; padding: .7rem 1rem .7rem 1.2rem;
+        grid-template-columns: 1fr auto; grid-template-areas: "hode mer" "sitat sitat";
+    }
+    .partirad__sammendrag::-webkit-details-marker { display: none; }
+    @media (min-width: 860px) {
+        .partirad__sammendrag { grid-template-columns: 15rem 1fr auto; grid-template-areas: "hode sitat mer"; align-items: baseline; }
+    }
+    .partirad__hode { grid-area: hode; display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .5rem; }
+    .partirad__parti { font-weight: 600; color: var(--blekk); }
+    .partirad__notis { font-size: .78rem; color: var(--aksent); font-weight: 600; }
+    .partirad__notis--varsel { color: var(--delt-tekst); background: var(--delt); padding: .1rem .45rem; border-radius: 999px; }
+    .partirad__sitat { grid-area: sitat; color: var(--tekst); }
+    .partirad__sitat em { color: var(--dempet); }
+    .partirad__mer { grid-area: mer; font-size: .88rem; font-weight: 600; color: var(--aksent); white-space: nowrap; }
+    .partirad__mer::after { content: ' ›'; display: inline-block; transition: transform .15s; }
+    .partirad[open] .partirad__mer::after { transform: rotate(90deg); }
+    .partirad__innhold { display: flex; flex-direction: column; gap: .6rem; padding: .2rem 1rem 1rem 1.2rem; border-top: 1px solid var(--linje); padding-top: .8rem; }
+    @media (min-width: 860px) { .partirad__innhold { padding-left: calc(15rem + 2.1rem); } }
+    .partirad__innhold h3 { font-size: .95rem; margin: .3rem 0 0; }
+    .partirad__merknad { margin: 0; font-size: .88rem; font-weight: 600; color: var(--aksent); }
+    .partirad__fakta { margin: 0; display: flex; flex-wrap: wrap; gap: .3rem 1.1rem; font-size: .88rem; color: var(--dempet); }
+    .meldfra-boks { font-size: .9rem; }
+    .meldfra-boks summary { cursor: pointer; color: var(--dempet); }
+    .partirad .meldfra { max-width: 34rem; font-size: .93rem; }
+    .meldfra textarea { min-height: 4.5rem; border: 1px solid var(--dempet) !important; }
+
+    .visningsvalg {
+        margin-top: 2rem; display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem .9rem; font-size: .9rem;
+        color: var(--dempet); border-top: 1px solid var(--linje); padding-top: 1rem;
+    }
+    .visningsvalg__etikett { font-weight: 600; color: var(--tekst); }
+    .visningsvalg a { color: var(--dempet); }
+    .visningsvalg a[aria-current] { color: var(--blekk); font-weight: 600; text-decoration: none; }
+    .visningsvalg__forklaring { flex-basis: 100%; }
+
+    /* Oversiktstabellen */
+    .legende { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: 0 0 .75rem; font-size: .88rem; }
+    .legende a { margin-left: .35rem; }
+    .oversikt__rull { position: relative; overflow-x: auto; background: var(--flate); border: 1px solid var(--linje); border-radius: var(--radius); }
+    .oversikt__tabell { border-collapse: separate; border-spacing: 3px; width: 100%; padding: .4rem; }
+    .oversikt__tabell th { font-weight: 600; color: var(--blekk); }
+    .oversikt__temakol { text-align: left; padding: .3rem .5rem; font-size: .88rem; color: var(--dempet) !important; }
+    .oversikt__parti { font-size: .85rem; padding: .3rem .15rem .35rem; border-bottom: 3px solid var(--partifarge); min-width: 2.6rem; }
+    .oversikt__tema { text-align: left; padding: .35rem .6rem .35rem .5rem; min-width: 9rem; }
+    .oversikt__tabell td, .oversikt__tabell th { position: relative; }
+    /* Temanavnet blir stående når tabellen rulles sidelengs på mobil. */
+    .oversikt__tema, .oversikt__temakol { position: sticky !important; left: 0; z-index: 1; background: var(--flate); }
+    .oversikt__tema a { color: var(--blekk); text-decoration: none; font-weight: 600; }
+    .oversikt__tema a:hover { text-decoration: underline; }
+    .oversikt__pastand { display: block; font-weight: 400; font-size: .82rem; color: var(--dempet); line-height: 1.35; }
+    @media (max-width: 640px) { .oversikt__pastand { display: none; } .oversikt__tema { min-width: 7rem; font-size: .92rem; } }
+    .oversikt__tabell td { padding: 0; height: 2.6rem; }
+    .celle {
+        display: grid; place-items: center; height: 100%; min-height: 2.4rem; border-radius: 6px; font-size: .78rem; font-weight: 600;
+        text-decoration: none; background: var(--ikke); color: var(--ikke-tekst) !important;
+    }
+    a.celle:hover { box-shadow: inset 0 0 0 2px var(--blekk); }
+    .celle.merkelapp--for { background: var(--for); color: var(--for-tekst) !important; }
+    .celle.merkelapp--delvis-for { background: var(--delvis); color: var(--delvis-tekst) !important; }
+    .celle.merkelapp--mot { background: var(--mot); color: var(--mot-tekst) !important; }
+    .celle.merkelapp--delt-uklart { background: var(--delt); color: var(--delt-tekst) !important; }
+    .celle--ikke-vurdert { background: transparent; border: 1px dashed var(--linje); }
+    .oversikt__fot { margin-top: 1rem; }
+    [data-skjult-parti] { display: none; }
+
+    .partivelger { border: 1px solid var(--linje); border-radius: var(--radius); background: var(--flate); padding: .8rem 1rem 1rem; margin: 0 0 1rem; }
+    .partivelger legend { font-weight: 600; color: var(--blekk); padding: 0 .3rem; }
+    .partivelger__hjelp { margin: 0 0 .6rem; font-size: .9rem; color: var(--dempet); }
+    .partivelger__valg { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .6rem; }
+    .partivalg { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; font-size: .9rem; font-weight: 600; padding: .25rem .6rem .25rem .45rem; border-radius: 6px; background: var(--bakgrunn); border-left: 4px solid var(--partifarge); }
+    .partivalg:has(input:checked) { background: var(--aksent-flate); }
+    .partivelger__uenige { display: block; font-size: .9rem; margin-bottom: .6rem; }
+
+    /* Partisiden */
+    .partihode h1 { font-size: clamp(1.9rem, 4.5vw, 2.7rem); margin: .5rem 0 .4rem; border-left: 6px solid var(--partifarge); padding-left: .7rem; }
+    .partihode__programmer { margin: 0; color: var(--dempet); }
+    .temarader { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; }
+    .temarad__lenke {
+        display: grid; gap: .15rem; padding: .7rem 1rem; background: var(--flate); border: 1px solid var(--linje); border-radius: 10px;
+        text-decoration: none; color: var(--tekst) !important;
+    }
+    .temarad__lenke:hover { border-color: var(--aksent); }
+    .temarad__tema { font-weight: 600; color: var(--blekk); }
+    .temarad__pastand { font-size: .88rem; color: var(--dempet); }
+    .temarad__sitat { font-size: .95rem; }
+    .temarad .merkelapp { justify-self: start; }
 
     .ikke-vurdert { margin-top: 1.5rem; font-size: .93rem; color: var(--dempet); }
 

@@ -15,9 +15,11 @@ use App\Models\Program;
 use App\Models\Setning;
 use App\Models\Standpunkt;
 use App\Models\Tema;
+use App\Models\Temabesok;
 use App\Models\Temaforslag;
 use App\Models\Tilbakemelding;
 use App\Models\User;
+use App\Visning\Kildeutdrag;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -310,5 +312,134 @@ class OffentligeSiderTest extends TestCase
 
         $this->get('/om')->assertOk()->assertSee($sitat, false)->assertSee('https://polsys.sikt.no/', false);
         $this->get('/')->assertOk()->assertSee($sitat, false)->assertSee('Hentet 25. oktober 2026', false);
+    }
+
+    private function tema(string $slug, string $navn): Tema
+    {
+        return Tema::create(['navn' => $navn, 'slug' => $slug, 'pastand' => "Påstand om {$navn}.", 'status' => 'publisert']);
+    }
+
+    public function test_temasiden_viser_svaret_forst_gruppert_etter_merkelapp(): void
+    {
+        $h = $this->parti('h', 'Høyre');
+        $r = $this->parti('r', 'Rødt');
+        $this->parti('v', 'Venstre');
+        $this->standpunkt($this->program($h, 'arbeidsprogram', 'Norge skal være med i NATO.'), Standpunktverdi::For, 'Norge skal være med i NATO.');
+        $this->standpunkt($this->program($r, 'arbeidsprogram', 'Norge skal ut av NATO.'), Standpunktverdi::Mot, 'Norge skal ut av NATO.');
+
+        $html = $this->get('/tema/nato')->assertOk()
+            ->assertSee('aria-label="Kort svar"', false)
+            ->assertSee('href="#parti-'.$h->id.'"', false)
+            ->assertSee('1 av 3')
+            ->assertSee('Ikke kontrollert ennå')
+            ->assertSee('<h3 class="gruppetittel">For</h3>', false)
+            ->assertSee('<h3 class="gruppetittel">Mot</h3>', false)
+            ->assertSee('<details class="partirad" id="parti-'.$h->id.'"', false)
+            ->assertSee('href="'.route('om').'#skalaen"', false)
+            ->getContent();
+
+        // Svaret står før sitatene, og velgeren for program står etter.
+        $this->assertLessThan(strpos($html, 'Hva partiene skriver'), strpos($html, 'Kort svar'));
+        $this->assertLessThan(strpos($html, 'Vis standpunkt fra:'), strpos($html, 'Hva partiene skriver'));
+    }
+
+    public function test_lange_sitater_kortes_ned_og_like_setninger_siteres_en_gang(): void
+    {
+        $h = $this->parti('h', 'Høyre');
+        $lang = 'Norge skal være et aktivt og troverdig medlem av NATO, styrke forsvaret i nord, bidra mer til alliansens felles operasjoner og samtidig bygge et tettere nordisk forsvarssamarbeid med Sverige, Finland og Danmark.';
+        $program = $this->program($h, 'arbeidsprogram', $lang);
+        $standpunkt = $this->standpunkt($program, Standpunktverdi::For, $lang);
+        $standpunkt->kildesetninger()->attach(Setning::where('program_id', $program->id)->where('tekst', 'Forsvaret skal styrkes.')->value('id'), ['rekkefolge' => 2]);
+        // Samme tekst to ganger blir bare sitert én gang.
+        $kopi = Setning::where('program_id', $program->id)->where('tekst', $lang)->first()->replicate();
+        $kopi->nokkel .= '-kopi';
+        $kopi->save();
+        $standpunkt->kildesetninger()->attach($kopi->id, ['rekkefolge' => 3]);
+
+        $kort = Kildeutdrag::fra($standpunkt->fresh());
+        $this->assertSame($lang.' Forsvaret skal styrkes.', $kort->utdrag);
+        $this->assertLessThanOrEqual(162, mb_strlen($kort->kort()));
+        $this->assertStringEndsWith(' …', $kort->kort());
+        $this->assertStringStartsWith('Norge skal være et aktivt', $kort->kort());
+
+        $this->get('/tema/nato')->assertSee('«'.$kort->kort().'»')->assertSee('«'.$lang.' Forsvaret skal styrkes.»');
+    }
+
+    public function test_forsiden_viser_de_mest_besokte_temaene_og_tre_tilfeldige(): void
+    {
+        $h = $this->parti('h', 'Høyre');
+        $program = $this->program($h, 'arbeidsprogram', 'Norge skal være med i NATO.');
+        $temaer = collect(range(1, 9))->map(fn (int $i) => $this->tema("tema-{$i}", "Tema {$i}"));
+        $this->standpunkt($program, Standpunktverdi::For, 'Norge skal være med i NATO.');
+
+        foreach ([[$temaer[0], 9], [$temaer[1], 7], [$temaer[2], 5], [$this->nato, 3], [$temaer[3], 1]] as [$tema, $antall]) {
+            Temabesok::create(['tema_id' => $tema->id, 'dato' => now()->toDateString(), 'antall' => $antall]);
+        }
+
+        $html = $this->get('/')->assertOk()
+            ->assertSee('De mest besøkte temaene og noen tilfeldig valgte.')
+            ->assertSee('href="'.route('tema', $this->nato).'#parti-'.$h->id.'"', false)
+            ->assertSee('Se alle 10 temaene')
+            ->assertDontSee('Slik leser du svaret')
+            ->getContent();
+
+        $this->assertSame(4, substr_count($html, 'data-gruppe="populær"'));
+        $this->assertSame(6, substr_count($html, 'data-gruppe="tilfeldig"'));
+        // Tre tilfeldige vises uten JavaScript, resten er skjult.
+        $this->assertSame(7, preg_match_all('/<tr\s+data-gruppe="[^"]+"\s*>/u', $html));
+        // De mest besøkte står først, i rekkefølge.
+        $this->assertLessThan(strpos($html, 'Tema 2</a>'), strpos($html, 'Tema 1</a>'));
+        $this->assertLessThan(strpos($html, 'NATO</a>'), strpos($html, 'Tema 3</a>'));
+    }
+
+    public function test_besok_pa_temasiden_telles_men_ikke_fra_roboter(): void
+    {
+        $this->get('/tema/nato', ['User-Agent' => 'Mozilla/5.0 (Macintosh)'])->assertOk();
+        $this->get('/tema/nato', ['User-Agent' => 'Mozilla/5.0 (Macintosh)'])->assertOk();
+        $this->get('/tema/nato', ['User-Agent' => 'Googlebot/2.1'])->assertOk();
+        $this->get('/tema/nato', ['User-Agent' => 'Mozilla/5.0', 'Sec-Purpose' => 'prefetch'])->assertOk();
+        $this->get('/', ['User-Agent' => 'Mozilla/5.0 (Macintosh)'])->assertOk();
+
+        $this->assertSame(2, (int) Temabesok::where('tema_id', $this->nato->id)->sum('antall'));
+        $this->assertSame([$this->nato->id], Temabesok::mestBesokte()->all());
+    }
+
+    public function test_alle_temaer_vises_i_en_tabell_med_partivelger(): void
+    {
+        $h = $this->parti('h', 'Høyre');
+        $this->parti('r', 'Rødt');
+        $this->standpunkt($this->program($h, 'arbeidsprogram', 'Norge skal være med i NATO.'), Standpunktverdi::For, 'Norge skal være med i NATO.');
+
+        $this->get('/tema')->assertOk()
+            ->assertSee('data-partivelger', false)
+            ->assertSee('<input type="checkbox" value="r" data-parti-valg>', false)
+            ->assertSee('data-verdi="for"', false)
+            ->assertSee('data-verdi="ikke-vurdert"', false)
+            ->assertSee('Høyre: For');
+    }
+
+    public function test_partisiden_viser_alt_partiet_mener(): void
+    {
+        $h = $this->parti('h', 'Høyre');
+        $program = $this->program($h, 'arbeidsprogram', 'Norge skal være med i NATO.');
+        $this->standpunkt($program, Standpunktverdi::For, 'Norge skal være med i NATO.');
+        $skatt = $this->tema('formuesskatt', 'Formuesskatt');
+        $this->standpunkt($program, Standpunktverdi::IkkeOmtalt, 'Vi vil ha lav skatt.', tema: $skatt);
+        $this->tema('eu', 'EU');
+
+        $this->get('/parti')->assertOk()->assertSee('href="'.route('parti', $h).'"', false);
+
+        $this->get('/parti/h')->assertOk()
+            ->assertSee('Hva mener Høyre?')
+            ->assertSee('href="'.route('tema', $this->nato).'#parti-'.$h->id.'"', false)
+            ->assertSee('«Norge skal være med i NATO.»')
+            ->assertSee('Ikke omtalt')
+            ->assertSee('1 tema er ikke ferdig kontrollert for partiet ennå.');
+
+        $h->update(['aktiv_til' => now()->subYear()]);
+        $this->get('/parti/h')->assertNotFound();
+        $this->get('/parti/finnes-ikke')->assertNotFound();
+
+        $this->assertStringContainsString('<loc>'.route('partier').'</loc>', $this->get('/sitemap.xml')->getContent());
     }
 }

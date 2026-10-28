@@ -1,15 +1,11 @@
-<x-layouts.offentlig tittel="Alle temaer" beskrivelse="Alle temaer der partienes standpunkt er analysert og kontrollert, med ordrette utdrag fra partiprogrammene." :forslag="$forslag">
+<x-layouts.offentlig tittel="Alle temaer" beskrivelse="Alle temaer der partienes standpunkt er analysert og kontrollert, i én tabell der du kan sammenligne partiene." :forslag="$forslag">
     <div class="ramme">
         <h1 class="sidetittel">Alle temaer</h1>
-        <p class="seksjon__ingress">Hvert tema har en påstand som partienes standpunkt er målt mot.</p>
-        @if ($temaer->isEmpty())
+        <p class="seksjon__ingress">Hvert tema har en påstand som partienes standpunkt er målt mot. Trykk på en rute for å se sitatet fra programmet.</p>
+        @if ($tabell->rader === [])
             <p class="tom">Ingen temaer er publisert ennå.</p>
         @else
-            <ul class="temaliste">
-                @foreach ($temaer as $tema)
-                    <li><a href="{{ route('tema', $tema) }}"><strong>{{ $tema->navn }}</strong><span>{{ $tema->pastand }}</span></a></li>
-                @endforeach
-            </ul>
+            <x-standpunkttabell :tabell="$tabell" velger />
         @endif
     </div>
 </x-layouts.offentlig>

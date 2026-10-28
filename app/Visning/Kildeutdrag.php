@@ -39,6 +39,33 @@ final readonly class Kildeutdrag
         return new self($standpunkt, $program, $standpunkt->utdrag(), $lenke, $side, $pdf);
     }
 
+    /**
+     * Første setning av utdraget, til den korte raden på temasiden. Er den
+     * lengre enn $maks tegn, kuttes den ved et ordskille og får «…». Hele
+     * utdraget vises når raden åpnes.
+     */
+    public function kort(int $maks = 160): string
+    {
+        $forste = trim((string) $this->standpunkt->utdragssetninger()->first()?->tekst);
+        if ($forste === '') {
+            return '';
+        }
+
+        $kuttet = $this->standpunkt->utdragssetninger()->count() > 1;
+        if (mb_strlen($forste) > $maks) {
+            $forste = rtrim(preg_replace('/\s+\S*$/u', '', mb_substr($forste, 0, $maks)), ' ,;:–-');
+            $kuttet = true;
+        }
+
+        return $kuttet ? $forste.' …' : $forste;
+    }
+
+    /** Er det korte utdraget hele utdraget? */
+    public function erKort(): bool
+    {
+        return $this->kort() === $this->utdrag;
+    }
+
     /** «Arbeidsprogram 2025–2029» eller «Prinsipprogram (vedtatt 2019)». */
     public function kildenavn(): string
     {

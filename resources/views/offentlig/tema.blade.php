@@ -13,6 +13,7 @@
         Temaoversikt::ARBEIDSPROGRAM => 'Bare arbeidsprogram',
         Temaoversikt::PRINSIPPROGRAM => 'Bare prinsipprogram',
     ];
+    $totalt = $kort->count() + $ikkeVurdert->count();
 @endphp
 <x-layouts.offentlig
     :tittel="$tema->navn"
@@ -33,50 +34,64 @@
 
         <header class="temahode">
             <h1>Hva mener partiene om {{ $tema->navn }}?</h1>
-            @if ($tema->beskrivelse)
-                <p class="temahode__beskrivelse">{{ $tema->beskrivelse }}</p>
+            <p class="pastand">
+                <span class="pastand__etikett">Målt mot påstanden</span>
+                <strong class="pastand__tekst">«{{ $tema->pastand }}»</strong>
+            </p>
+            @if ($visning !== Temaoversikt::BEGGE)
+                <p class="visningsnotis">Viser {{ $visning === Temaoversikt::ARBEIDSPROGRAM ? 'bare arbeidsprogrammene' : 'bare prinsipprogrammene' }}. <a href="{{ route('tema', $tema) }}">Vis samlet</a></p>
             @endif
-            <div class="pastand">
-                <span class="pastand__etikett">Standpunktene er målt mot påstanden</span>
-                <p class="pastand__tekst">«{{ $tema->pastand }}»</p>
-            </div>
         </header>
 
+        {{-- Svaret først: hvem som står hvor, uten å lese et eneste sitat. --}}
         @if ($kort->isNotEmpty())
-            <div class="fordeling" aria-label="Fordeling">
-                @foreach ($fordeling as $verdi => $antall)
-                    @php($v = \App\Enums\Standpunktverdi::from($verdi))
-                    <span class="fordeling__del">
-                        <span class="merkelapp merkelapp--{{ str_replace('_', '-', $verdi) }}">{{ $v->etikett() }}</span>
-                        {{ $antall }} {{ $antall === 1 ? 'parti' : 'partier' }}
-                    </span>
+            <section class="svar" aria-label="Kort svar">
+                <div class="fordelingsstang" aria-hidden="true">
+                    @foreach ($grupper as $verdi => $gruppe)
+                        <span class="fordelingsstang__del merkelapp--{{ str_replace('_', '-', $verdi) }}" style="flex-grow: {{ $gruppe->count() }}"></span>
+                    @endforeach
+                    @if ($ikkeVurdert->isNotEmpty())
+                        <span class="fordelingsstang__del fordelingsstang__del--ikke-vurdert" style="flex-grow: {{ $ikkeVurdert->count() }}"></span>
+                    @endif
+                </div>
+                <ul class="svar__grupper">
+                    @foreach ($grupper as $verdi => $gruppe)
+                        <li class="svar__gruppe">
+                            <h2 class="svar__tittel"><span class="merkelapp merkelapp--{{ str_replace('_', '-', $verdi) }}">{{ $gruppe->first()->etikett() }}</span> <span class="svar__antall">{{ $gruppe->count() }} av {{ $totalt }}</span></h2>
+                            <ul class="partibrikker">
+                                @foreach ($gruppe as $k)
+                                    <li><a class="partibrikke" href="#parti-{{ $k->parti->id }}" style="--partifarge: {{ $k->parti->farge ?? '#6B7280' }}" title="{{ $k->parti->navn }}">{{ $k->parti->forkortelse ?: $k->parti->navn }}</a></li>
+                                @endforeach
+                            </ul>
+                        </li>
+                    @endforeach
+                    @if ($ikkeVurdert->isNotEmpty())
+                        <li class="svar__gruppe svar__gruppe--ikke-vurdert">
+                            <h2 class="svar__tittel"><span class="merkelapp merkelapp--ingen">Ikke kontrollert ennå</span> <span class="svar__antall">{{ $ikkeVurdert->count() }} av {{ $totalt }}</span></h2>
+                            <ul class="partibrikker">
+                                @foreach ($ikkeVurdert as $parti)
+                                    <li><span class="partibrikke partibrikke--stiplet" title="{{ $parti->navn }}">{{ $parti->forkortelse ?: $parti->navn }}</span></li>
+                                @endforeach
+                            </ul>
+                        </li>
+                    @endif
+                </ul>
+                <p class="svar__hjelp"><a href="{{ route('om') }}#skalaen">Hva betyr merkelappene?</a></p>
+            </section>
+
+            <section class="seksjon seksjon--tett" aria-labelledby="hva-partiene-skriver">
+                <h2 class="seksjon__tittel" id="hva-partiene-skriver">Hva partiene skriver</h2>
+                @foreach ($grupper as $verdi => $gruppe)
+                    <h3 class="gruppetittel">{{ $gruppe->first()->etikett() }}</h3>
+                    <div class="partirader">
+                        @foreach ($gruppe as $partikort)
+                            <x-partirad :kort="$partikort" :tema="$tema" />
+                        @endforeach
+                    </div>
                 @endforeach
-            </div>
-        @endif
-
-        <nav class="faner" aria-label="Velg program">
-            @foreach ($visninger as $nokkel => $navn)
-                <a href="{{ $nokkel === Temaoversikt::BEGGE ? route('tema', $tema) : route('tema', [$tema, 'visning' => $nokkel]) }}"
-                   @if ($visning === $nokkel) aria-current="page" @endif
-                   data-spor-kategori="Tema" data-spor-handling="Velg visning" data-spor-navn="{{ $navn }}">{{ $navn }}</a>
-            @endforeach
-        </nav>
-        <p class="faner__forklaring">
-            @switch($visning)
-                @case(Temaoversikt::ARBEIDSPROGRAM) Bare arbeidsprogrammene for 2025–2029: hva partiene vil gjennomføre i perioden. @break
-                @case(Temaoversikt::PRINSIPPROGRAM) Bare prinsipprogrammene: hva partiene mener på lang sikt. @break
-                @default Merkelappen kommer fra arbeidsprogrammet. Prinsipprogrammet vises som «Prinsipielt syn», og brukes bare når arbeidsprogrammet ikke omtaler temaet.
-            @endswitch
-        </p>
-
-        @if ($kort->isEmpty())
-            <p class="tom">Ingen standpunkt er ferdig kontrollert for denne visningen ennå.</p>
+            </section>
         @else
-            <div class="kortliste">
-                @foreach ($kort as $partikort)
-                    <x-partikort :kort="$partikort" :tema="$tema" />
-                @endforeach
-            </div>
+            <p class="tom">Ingen standpunkt er ferdig kontrollert for denne visningen ennå.</p>
         @endif
 
         @if ($ikkeVurdert->isNotEmpty())
@@ -86,6 +101,22 @@
                 Standpunktene vises når de er kontrollert.
             </p>
         @endif
+
+        <nav class="visningsvalg" aria-label="Velg program">
+            <span class="visningsvalg__etikett">Vis standpunkt fra:</span>
+            @foreach ($visninger as $nokkel => $navn)
+                <a href="{{ $nokkel === Temaoversikt::BEGGE ? route('tema', $tema) : route('tema', [$tema, 'visning' => $nokkel]) }}"
+                   @if ($visning === $nokkel) aria-current="page" @endif
+                   data-spor-kategori="Tema" data-spor-handling="Velg visning" data-spor-navn="{{ $navn }}">{{ $navn }}</a>
+            @endforeach
+            <span class="visningsvalg__forklaring">
+                @switch($visning)
+                    @case(Temaoversikt::ARBEIDSPROGRAM) Arbeidsprogrammene for 2025–2029: hva partiene vil gjennomføre i perioden. @break
+                    @case(Temaoversikt::PRINSIPPROGRAM) Prinsipprogrammene: hva partiene mener på lang sikt. @break
+                    @default Merkelappen kommer fra arbeidsprogrammet. Prinsipprogrammet brukes når arbeidsprogrammet ikke omtaler temaet.
+                @endswitch
+            </span>
+        </nav>
 
         @if ($andre->isNotEmpty())
             <section class="seksjon">

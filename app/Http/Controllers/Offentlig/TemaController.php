@@ -6,16 +6,17 @@ use App\Enums\Temastatus;
 use App\Http\Controllers\Controller;
 use App\Models\Tema;
 use App\Sok\Temasok;
+use App\Visning\Standpunkttabell;
 use App\Visning\Temaoversikt;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class TemaController extends Controller
 {
-    public function index(Temasok $sok): View
+    public function index(Temasok $sok, Temaoversikt $oversikt): View
     {
         return view('offentlig.temaer', [
-            'temaer' => $sok->publiserte(),
+            'tabell' => Standpunkttabell::for($sok->publiserte(), $oversikt),
             'forslag' => $sok->forslag(),
         ]);
     }
@@ -43,7 +44,7 @@ class TemaController extends Controller
             'tema' => $tema,
             'kort' => $kort,
             'ikkeVurdert' => $ikkeVurdert,
-            'fordeling' => Temaoversikt::fordeling($kort),
+            'grupper' => Temaoversikt::grupper($kort),
             'visning' => $visning,
             'andre' => $andre,
             'forslag' => $sok->forslag(),
