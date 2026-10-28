@@ -5,7 +5,6 @@ namespace App\Visning;
 use App\Analyse\Visningsregel;
 use App\Enums\Kildetype;
 use App\Enums\Standpunktstatus;
-use App\Enums\Standpunktverdi;
 use App\Models\Parti;
 use App\Models\Standpunkt;
 use App\Models\Tema;
@@ -26,6 +25,9 @@ class Temaoversikt
 
     public const VISNINGER = [self::BEGGE, self::ARBEIDSPROGRAM, self::PRINSIPPROGRAM];
 
+    /** @var Collection<int, Parti>|null */
+    private ?Collection $partier = null;
+
     public function __construct(private readonly Visningsregel $regel) {}
 
     /**
@@ -33,19 +35,55 @@ class Temaoversikt
      */
     public function for(Tema $tema, string $visning = self::BEGGE): array
     {
+        return $this->forMange(collect([$tema]), $visning)[$tema->id];
+    }
+
+    /**
+     * Partikortene for mange temaer på én gang, med to spørringer i stedet for
+     * to per tema. Brukes av oversiktstabellen og partisiden. Med $bare tas
+     * bare det ene partiet med.
+     *
+     * @param  Collection<int, Tema>  $temaer
+     * @return array<int, array{kort: Collection<int, Partikort>, ikkeVurdert: Collection<int, Parti>}>
+     */
+    public function forMange(Collection $temaer, string $visning = self::BEGGE, ?Parti $bare = null): array
+    {
+        $partier = $this->partier()->when($bare, fn (Collection $p) => $p->where('id', $bare->id))->values();
+
         $standpunkter = Standpunkt::query()
-            ->where('tema_id', $tema->id)
+            ->whereIn('tema_id', $temaer->pluck('id'))
             ->whereIn('status', [Standpunktstatus::Godkjent, Standpunktstatus::Korrigert])
             ->whereHas('program', fn ($q) => $q->gjeldende())
+            ->when($bare, fn ($q) => $q->whereHas('program', fn ($p) => $p->where('parti_id', $bare->id)))
             ->with(['program.parti', 'kildesetninger.avsnitt.hovedkapittel', 'kildesetninger.program.parti'])
-            ->get();
+            ->get()
+            ->groupBy('tema_id');
 
-        $partier = Parti::query()
+        $resultat = [];
+        foreach ($temaer as $tema) {
+            $resultat[$tema->id] = $this->bygg($partier, $standpunkter->get($tema->id, collect()), $visning);
+        }
+
+        return $resultat;
+    }
+
+    /** Partiene som vises, alfabetisk. @return Collection<int, Parti> */
+    public function partier(): Collection
+    {
+        return $this->partier ??= Parti::query()
             ->with(['programmer' => fn ($q) => $q->gjeldende()])
             ->where(fn ($q) => $q->whereNull('aktiv_til')->orWhere('aktiv_til', '>=', now()))
             ->orderBy('navn')
             ->get();
+    }
 
+    /**
+     * @param  Collection<int, Parti>  $partier
+     * @param  Collection<int, Standpunkt>  $standpunkter
+     * @return array{kort: Collection<int, Partikort>, ikkeVurdert: Collection<int, Parti>}
+     */
+    private function bygg(Collection $partier, Collection $standpunkter, string $visning): array
+    {
         $kort = collect();
         $ikkeVurdert = collect();
 
@@ -75,18 +113,22 @@ class Temaoversikt
         ];
     }
 
-    /** Antall partier per merkelapp, i fast rekkefølge. @return array<string, int> */
-    public static function fordeling(Collection $kort): array
+    /**
+     * Kortene gruppert etter merkelapp, i fast rekkefølge, for «svaret først»
+     * og overskriftene i listen. Kort uten merkelapp («Ingen prinsipprogram»)
+     * får nøkkelen «ingen».
+     *
+     * @param  Collection<int, Partikort>  $kort
+     * @return array<string, Collection<int, Partikort>>
+     */
+    public static function grupper(Collection $kort): array
     {
-        $fordeling = [];
-        foreach (Standpunktverdi::cases() as $verdi) {
-            $antall = $kort->filter(fn (Partikort $k) => $k->verdi === $verdi)->count();
-            if ($antall) {
-                $fordeling[$verdi->value] = $antall;
-            }
+        $grupper = [];
+        foreach ($kort as $k) {
+            $grupper[$k->verdi?->value ?? 'ingen'][] = $k;
         }
 
-        return $fordeling;
+        return array_map(fn (array $k) => collect($k), $grupper);
     }
 
     private function samlet(Parti $parti, ?Standpunkt $arbeid, ?Standpunkt $prinsipp): Partikort

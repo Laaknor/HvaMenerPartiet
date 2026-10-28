@@ -7,7 +7,7 @@
         <p>Standpunktene bygger på partienes arbeidsprogram for stortingsperioden 2025–2029 og deres gjeldende prinsipprogram. Programmene er gjort om fra PDF til tekst, delt i kapitler, avsnitt og setninger, og kontrollert mot originalen. Hver setning har en fast adresse, så sitatene lenker rett til riktig sted. <a href="{{ route('programmer') }}">Se programmene</a>.</p>
         <p>Eldre stortingsprogrammer, lokalvalgprogrammer, sametingsprogrammer og prinsipprogrammer fra 1884 og fram til i dag kommer fra Sikts samling av partidokumenter. Kilde: Sikt – Kunnskapssektorens tjenesteleverandør. (u.å.). <cite>Data om det politiske system</cite>. Hentet 25. oktober 2026, fra <a href="https://polsys.sikt.no/">https://polsys.sikt.no/</a>.</p>
 
-        <h2>Skalaen</h2>
+        <h2 id="skalaen">Skalaen</h2>
         <p>Hvert tema har en nøytralt formulert påstand, for eksempel «Norge bør være medlem av NATO». Standpunktet sier hvordan programmet forholder seg til påstanden:</p>
         <x-skala />
         <p>«Ikke omtalt» og «Delt / uklart» er ikke det samme. Det første betyr at programmet ikke sier noe om temaet, det andre at teksten finnes, men peker i flere retninger. Et parti uten prinsipprogram vises som «Ingen prinsipprogram».</p>
@@ -37,7 +37,7 @@
         <ul>
             <li>Et program sier ikke alt. At et parti ikke omtaler et tema, betyr ikke at det ikke har en mening.</li>
             <li>Hvordan påstanden er formulert, påvirker svaret. Derfor står påstanden alltid øverst på temasiden.</li>
-            <li>Klassifiseringen kan ta feil, selv etter kontroll. Bruk «Meld fra om feil» på partikortet, så ser vi på det.</li>
+            <li>Klassifiseringen kan ta feil, selv etter kontroll. Åpne partiet på temasiden og bruk «Meld fra om feil», så ser vi på det.</li>
             <li>Stemmegivning på Stortinget er ikke med ennå.</li>
         </ul>
 
