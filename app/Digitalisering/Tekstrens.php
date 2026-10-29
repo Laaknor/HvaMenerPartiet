@@ -9,6 +9,9 @@ final class Tekstrens
 {
     private const LIGATURER = ['ﬁ' => 'fi', 'ﬂ' => 'fl', 'ﬀ' => 'ff', 'ﬃ' => 'ffi', 'ﬄ' => 'ffl', 'ﬅ' => 'st', 'ﬆ' => 'st'];
 
+    /** Punkttegn som brukes foran listepunkter i programmene. */
+    public const PUNKTTEGN = '•●▪■◦‣∙·–—\-\*✓□➢►▶ƽ\x{F0B7}\x{F0A7}\x{F076}\x{F0D8}\x{F0FC}';
+
     /** Ord som tyder på at bindestreken er en ekte bindestrek («helse- og omsorg»). */
     private const ETTER_BINDESTREK = ['og', 'eller', 'til', 'samt', 'enn', 'som'];
 
@@ -44,9 +47,10 @@ final class Tekstrens
             return mb_substr($forste, 0, -1).$andre;
         }
 
-        if (preg_match('/\p{L}-$/u', $forste) && preg_match('/^(\p{Ll}+)/u', $andre, $m)) {
+        if (preg_match('/(\p{L})-$/u', $forste, $f) && preg_match('/^(\p{Ll}+)/u', $andre, $m)) {
             if (! in_array($m[1], self::ETTER_BINDESTREK, true)) {
-                return mb_substr($forste, 0, -1).$andre;
+                // Etter en stor bokstav er bindestreken ekte («FN-» + «pakten»).
+                return preg_match('/\p{Lu}/u', $f[1]) ? $forste.$andre : mb_substr($forste, 0, -1).$andre;
             }
         }
 
@@ -81,6 +85,15 @@ final class Tekstrens
     public static function erAvsluttet(string $tekst): bool
     {
         return (bool) preg_match('/[.!?:…]["»”’)\]]*$/u', rtrim($tekst));
+    }
+
+    /**
+     * Er teksten bare et punktmerke: et punkttegn, «o» (underpunkt), «a)», «(b)»,
+     * «3)» eller «3.»?
+     */
+    public static function erPunktmerke(string $tekst): bool
+    {
+        return (bool) preg_match('/^(?:['.self::PUNKTTEGN.']|o|\(?(?:[a-zæøå]|\d{1,2})\)|\d{1,2}\.)$/u', self::normaliser($tekst));
     }
 
     public static function begynnerMedSmaBokstav(string $tekst): bool

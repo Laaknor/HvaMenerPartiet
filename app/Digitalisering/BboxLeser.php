@@ -62,12 +62,27 @@ class BboxLeser
                 foreach ($blokk->getElementsByTagName('line') as $linje) {
                     /** @var DOMElement $linje */
                     $ord = [];
+                    $hoyder = [];
                     foreach ($linje->getElementsByTagName('word') as $w) {
+                        /** @var DOMElement $w */
                         $ord[] = $w->textContent;
+                        $hoyder[] = [(float) $w->getAttribute('yMin'), (float) $w->getAttribute('yMax')];
                     }
                     $tekst = trim(implode(' ', $ord));
                     if ($tekst === '') {
                         continue;
+                    }
+
+                    $yMin = (float) $linje->getAttribute('yMin');
+                    $yMax = (float) $linje->getAttribute('yMax');
+
+                    // Punktmerket («a)», «•», «o») er ofte satt i større skrift enn
+                    // teksten. Da gjelder høyden til resten av linjen, ellers ser
+                    // listepunktet ut som en overskrift.
+                    if (count($ord) > 1 && Tekstrens::erPunktmerke($ord[0]) && $hoyder[1][1] > $hoyder[1][0]) {
+                        $resten = array_slice($hoyder, 1);
+                        $yMin = min(array_column($resten, 0));
+                        $yMax = max(array_column($resten, 1));
                     }
 
                     $linjer[] = new Linje(
@@ -75,9 +90,9 @@ class BboxLeser
                         blokk: $blokknr,
                         tekst: $tekst,
                         xMin: (float) $linje->getAttribute('xMin'),
-                        yMin: (float) $linje->getAttribute('yMin'),
+                        yMin: $yMin,
                         xMax: (float) $linje->getAttribute('xMax'),
-                        yMax: (float) $linje->getAttribute('yMax'),
+                        yMax: $yMax,
                         sideHoyde: $sideHoyde,
                     );
                 }
