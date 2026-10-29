@@ -144,4 +144,27 @@ class SidefilterTest extends TestCase
         $tekst = implode("\n", array_map(fn ($k) => implode("\n", array_map(fn ($a) => $a->tekst, $k->avsnitt)), $dokument->kapitler));
         $this->assertStringNotContainsString(' 7 8 9', $tekst);
     }
+
+    public function test_innholdsfortegnelse_med_kolon_og_bildeside_imellom(): void
+    {
+        // Som i Arbeiderpartiets program: «Innhold:», et bilde med bildetekst, og resten av fortegnelsen.
+        $this->linje(1, 'Testpartiets program 2025–2029', 30);
+        $this->linje(2, 'Innhold:', 20);
+        foreach (['Arbeid og næring', 'Helse og omsorg', 'Skole og utdanning', 'Klima og miljø'] as $i => $tittel) {
+            $this->linje(2, $tittel);
+            $this->linje(2, (string) (10 + $i));
+        }
+        $this->linje(3, 'Partiledelsen samlet på landsmøtet.');
+        foreach (['Forsvar', 'Samferdsel', 'Kultur', 'Utenriks'] as $i => $tittel) {
+            $this->linje(4, "{$tittel} ".(30 + $i));
+        }
+        for ($side = 5; $side <= 8; $side++) {
+            $this->innholdsside($side);
+        }
+
+        $utelatt = (new Sidefilter)->utelatteSider($this->linjer);
+
+        $this->assertSame('innholdsfortegnelse', $utelatt[2] ?? null);
+        $this->assertSame('innholdsfortegnelse', $utelatt[4] ?? null);
+    }
 }
