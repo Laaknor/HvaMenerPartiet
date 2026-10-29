@@ -16,6 +16,7 @@ class TekstrensTest extends TestCase
     {
         $this->assertSame('helse- og omsorgstjenester', Tekstrens::skjot('helse-', 'og omsorgstjenester'));
         $this->assertSame('EØS- Avtalen', Tekstrens::skjot('EØS-', 'Avtalen'));
+        $this->assertSame('FN-pakten', Tekstrens::skjot('FN-', 'pakten'));
     }
 
     public function test_fjerner_myk_bindestrek(): void

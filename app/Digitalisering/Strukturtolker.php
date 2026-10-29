@@ -26,7 +26,16 @@ class Strukturtolker
 
     private const MARG_BUNN = 0.92;
 
-    private const PUNKTMERKE = '/^([•●▪■◦‣∙·–—\-\*✓□➢►▶\x{F0B7}\x{F0A7}\x{F076}\x{F0D8}\x{F0FC}])\s*(.*)$/u';
+    private const PUNKTMERKE = '/^(['.Tekstrens::PUNKTTEGN.'])\s*(.*)$/u';
+
+    /** Bokstav- eller tallpunkt med parentes: «a) …», «(b) …», «3) …». */
+    private const BOKSTAVPUNKT = '/^\(?(?:[a-zæøå]|\d{1,2})\)\s+(\S.*)$/u';
+
+    /**
+     * «o …» (underpunkt) og «3. …». Kan også være vanlig tekst eller en
+     * nummerert overskrift, så de regnes bare som punkt etter en avsluttet setning.
+     */
+    private const SVAKT_PUNKT = '/^(?:o|\d{1,2}\.)\s+(\p{Lu}.*)$/u';
 
     private float $brodhoyde = 10.0;
 
@@ -54,6 +63,7 @@ class Strukturtolker
         }
 
         $this->brodhoyde = $this->finnBrodhoyde($linjer);
+        $linjer = $this->festPunktmerker($linjer);
         $this->finnOverskriftsnivaer($linjer);
 
         $dokument = new Dokument(antallSider: $antallSider, utelatteSider: $utelatt);
@@ -150,8 +160,8 @@ class Strukturtolker
     private function leggTilLinje(Linje $linje, ?array &$avsnitt, callable $lukkAvsnitt): void
     {
         $tekst = Tekstrens::normaliser($linje->tekst);
-        $erPunkt = preg_match(self::PUNKTMERKE, $tekst, $m) === 1 && trim($m[2]) !== '';
-        $punkttekst = $erPunkt ? trim($m[2]) : null;
+        $punkttekst = $this->punkttekst($tekst, $avsnitt);
+        $erPunkt = $punkttekst !== null;
 
         if ($avsnitt === null) {
             $avsnitt = $this->nyttAvsnitt($linje, $erPunkt ? null : $tekst);
@@ -199,6 +209,118 @@ class Strukturtolker
 
         $lukkAvsnitt();
         $avsnitt = $this->nyttAvsnitt($linje, $tekst);
+    }
+
+    /**
+     * Teksten i et listepunkt uten punktmerket, eller null hvis linjen ikke er et punkt.
+     *
+     * @param  array<string, mixed>|null  $avsnitt
+     */
+    private function punkttekst(string $tekst, ?array $avsnitt): ?string
+    {
+        if (preg_match(self::PUNKTMERKE, $tekst, $m) && trim($m[2]) !== '') {
+            return trim($m[2]);
+        }
+        if (preg_match(self::BOKSTAVPUNKT, $tekst, $m)) {
+            return trim($m[1]);
+        }
+        if (preg_match(self::SVAKT_PUNKT, $tekst, $m)) {
+            $siste = $avsnitt === null ? '' : $this->sisteTekst($avsnitt);
+            $etterAvsluttet = $avsnitt === null || $avsnitt['liste'] || Tekstrens::erAvsluttet($siste) || str_ends_with($siste, ':');
+
+            return $etterAvsluttet ? trim($m[1]) : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Noen PDF-er har punktmerkene («•», «a)», «3.») i en egen blokk ved siden
+     * av teksten. Da festes merket til tekstlinjen som står i samme høyde, og
+     * merket fjernes som egen linje. Ellers blir merkene egne avsnitt eller
+     * overskrifter («a) b)»), og punktene flyter sammen til ett avsnitt.
+     *
+     * Tekstlinjen beholder sin egen høyde, så et merke i større skrift ikke gjør
+     * den til en overskrift.
+     *
+     * @param  list<Linje>  $linjer
+     * @return list<Linje>
+     */
+    private function festPunktmerker(array $linjer): array
+    {
+        $merker = [];
+        $tekster = [];
+        foreach ($linjer as $i => $l) {
+            if (Tekstrens::erPunktmerke($l->tekst)) {
+                $merker[$l->side][] = $i;
+            } else {
+                $tekster[$l->side][] = $i;
+            }
+        }
+
+        if ($merker === []) {
+            return $linjer;
+        }
+
+        $midt = fn (Linje $l) => ($l->yMin + $l->yMax) / 2;
+        $fjern = [];
+        $nye = [];
+
+        foreach ($merker as $side => $indekser) {
+            $brukt = [];
+            foreach ($indekser as $mi) {
+                $merke = $linjer[$mi];
+                $fjern[$mi] = true;
+                $best = null;
+                $bestAvstand = INF;
+
+                foreach ($tekster[$side] ?? [] as $ti) {
+                    $l = $linjer[$ti];
+                    $mellomrom = $l->xMin - $merke->xMax;
+                    $avvik = abs($midt($l) - $midt($merke));
+                    if (isset($brukt[$ti]) || $mellomrom < -1 || $mellomrom > 40
+                        || $avvik > min($l->hoyde(), $merke->hoyde()) / 2) {
+                        continue;
+                    }
+                    if ($avvik + $mellomrom / 100 < $bestAvstand) {
+                        $best = $ti;
+                        $bestAvstand = $avvik + $mellomrom / 100;
+                    }
+                }
+
+                if ($best === null) {
+                    continue; // Et merke uten tekst ved siden av er bare støy.
+                }
+
+                $brukt[$best] = true;
+                $l = $nye[$best] ?? $linjer[$best];
+                $merketekst = Tekstrens::normaliser($merke->tekst);
+                // «3.» foran en overskrift er nummerering; ellers blir det et vanlig punkt.
+                if (preg_match('/^(\d{1,2}\.|o)$/u', $merketekst) && $l->hoyde() < $this->brodhoyde * self::OVERSKRIFT_FAKTOR) {
+                    $merketekst = '•';
+                }
+
+                $nye[$best] = new Linje(
+                    side: $l->side,
+                    blokk: $l->blokk,
+                    tekst: $merketekst.' '.$l->tekst,
+                    xMin: min($merke->xMin, $l->xMin),
+                    yMin: $l->yMin,
+                    xMax: $l->xMax,
+                    yMax: $l->yMax,
+                    sideHoyde: $l->sideHoyde,
+                );
+            }
+        }
+
+        $resultat = [];
+        foreach ($linjer as $i => $l) {
+            if (! isset($fjern[$i])) {
+                $resultat[] = $nye[$i] ?? $l;
+            }
+        }
+
+        return $resultat;
     }
 
     /**
