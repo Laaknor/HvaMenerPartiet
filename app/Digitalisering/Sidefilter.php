@@ -26,10 +26,13 @@ class Sidefilter
     /** Så mange sider i hver ende undersøkes for omslag. */
     private const OMSLAGSSIDER = 2;
 
+    /** En side med så få ord mellom to sider av innholdsfortegnelsen er et bilde med bildetekst. */
+    private const MAKS_ORD_BILDESIDE = 40;
+
     /** Korte dokumenter har ikke omslag som må fjernes. */
     private const MIN_SIDER_FOR_OMSLAG = 4;
 
-    private const INNHOLD_OVERSKRIFT = '/^(innhold(sfortegnelse|sliste)?|innhald(sliste)?|table of contents)$/iu';
+    private const INNHOLD_OVERSKRIFT = '/^(innhold(sfortegnelse|sliste)?|innhald(sliste)?|table of contents):?$/iu';
 
     /** «Forsvar ........ 23», «Forsvar 23» eller «4.2 Forsvar 23». */
     private const SLUTTER_MED_SIDETALL = '/\p{L}[\p{L}\p{P}\s]*?(\s|\.{2,}|…|·{2,})\s*\d{1,3}$/u';
@@ -133,22 +136,48 @@ class Sidefilter
         $tidlig = array_slice($nummer, 0, max(6, (int) ceil(count($nummer) / 4)));
         $funnet = [];
 
-        foreach ($tidlig as $side) {
+        foreach ($tidlig as $n => $side) {
             $linjer = $sider[$side];
             $andel = $this->andelSidetall($linjer);
             $harOverskrift = (bool) array_filter($linjer, fn (Linje $l) => preg_match(self::INNHOLD_OVERSKRIFT, Tekstrens::normaliser($l->tekst)) === 1);
-            $fortsetter = $funnet !== [] && end($funnet) === $side - 1;
+            $fortsetter = $funnet !== [] && $this->bareBildesiderMellom($sider, $tidlig, end($funnet), $n);
 
             if (($harOverskrift && $andel['antall'] >= 3)
                 || ($andel['antall'] >= 5 && $andel['andel'] >= 0.5)
                 || ($fortsetter && $andel['antall'] >= 3 && $andel['andel'] >= 0.35)) {
                 $funnet[] = $side;
-            } elseif ($funnet !== []) {
+            } elseif ($funnet !== [] && ! $this->erBildeside($linjer)) {
                 break;
             }
         }
 
         return $funnet;
+    }
+
+    /**
+     * En side med bare et bilde og en kort bildetekst kan stå midt i
+     * innholdsfortegnelsen, som i Arbeiderpartiets program.
+     *
+     * @param  list<Linje>  $linjer
+     */
+    private function erBildeside(array $linjer): bool
+    {
+        return array_sum(array_map(fn (Linje $l) => $l->antallOrd(), $linjer)) <= self::MAKS_ORD_BILDESIDE;
+    }
+
+    /**
+     * @param  array<int, list<Linje>>  $sider
+     * @param  list<int>  $tidlig
+     */
+    private function bareBildesiderMellom(array $sider, array $tidlig, int $forrige, int $n): bool
+    {
+        for ($i = $n - 1; $i >= 0 && $tidlig[$i] !== $forrige; $i--) {
+            if (! $this->erBildeside($sider[$tidlig[$i]])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

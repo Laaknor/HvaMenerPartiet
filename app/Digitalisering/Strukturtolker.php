@@ -45,13 +45,17 @@ class Strukturtolker
     /** @var list<string> høydeklynger som bare brukes til dokumenttittel */
     private array $tittelklynger = [];
 
-    public function __construct(private Sidefilter $sidefilter = new Sidefilter) {}
+    public function __construct(
+        private Sidefilter $sidefilter = new Sidefilter,
+        private Spalteleser $spalteleser = new Spalteleser,
+    ) {}
 
     /** @param list<Linje> $linjer */
     public function tolk(array $linjer, int $antallSider): Dokument
     {
         $linjer = $this->fjernLinjenumre($linjer);
         $linjer = $this->fjernToppOgBunntekst($linjer, $antallSider);
+        $linjer = $this->spalteleser->ordne($linjer);
         $utelatt = $this->sidefilter->utelatteSider($linjer);
         $linjer = array_values(array_filter($linjer, fn (Linje $l) => ! $this->sidefilter->erPrikklinje($l->tekst)));
 
@@ -65,6 +69,7 @@ class Strukturtolker
         $this->brodhoyde = $this->finnBrodhoyde($linjer);
         $linjer = $this->festPunktmerker($linjer);
         $this->finnOverskriftsnivaer($linjer);
+        $overskrifter = $this->vurderOverskriftsgrupper($linjer);
 
         $dokument = new Dokument(antallSider: $antallSider, utelatteSider: $utelatt);
         $tittel = $this->tittelFraForside($omslag);
@@ -89,7 +94,7 @@ class Strukturtolker
             $avsnitt = null;
         };
 
-        foreach ($linjer as $linje) {
+        foreach ($linjer as $i => $linje) {
             $klynge = $this->klynge($linje->hoyde());
 
             // Dokumenttittel på forsiden.
@@ -99,14 +104,15 @@ class Strukturtolker
                 continue;
             }
 
-            if ($this->erOverskrift($linje)) {
+            if ($overskrifter[$i] ?? false) {
                 $niva = $this->overskriftsniva($linje);
 
                 // Overskrift over flere linjer.
                 if ($forrigeOverskrift !== null && $avsnitt === null && $kapittel !== null && $kapittel->avsnitt === []
                     && $forrigeOverskrift->side === $linje->side
                     && $this->klynge($forrigeOverskrift->hoyde()) === $klynge
-                    && ($linje->yMin - $forrigeOverskrift->yMax) < $linje->hoyde() * 0.8) {
+                    && ($linje->yMin - $forrigeOverskrift->yMax) < $linje->hoyde() * 0.8
+                    && ! $this->erNummerertOverskrift($linje)) {
                     $kapittel->tittel = Tekstrens::skjot($kapittel->tittel, $linje->tekst);
                     $forrigeOverskrift = $linje;
 
@@ -129,6 +135,7 @@ class Strukturtolker
 
         $dokument->tittel = $tittel ? Tekstrens::normaliser(implode(' ', $tittel)) : null;
         $dokument->kapitler = $this->fjernInnholdsfortegnelse($dokument->kapitler);
+        $this->loftDeloverskrifter($dokument->kapitler);
 
         return $dokument;
     }
@@ -509,8 +516,19 @@ class Strukturtolker
             unset($klynger[$storste]);
         }
 
+        // En skriftstørrelse som bare brukes på én side, for eksempel én
+        // overskrift satt litt større enn de andre kapitteloverskriftene, får
+        // samme nivå som neste størrelse. Ellers havner resten av dokumentet
+        // under den ene overskriften.
+        $storrelser = array_keys($klynger);
         $niva = 1;
-        foreach (array_keys($klynger) as $k) {
+        foreach ($storrelser as $i => $k) {
+            $neste = $storrelser[$i + 1] ?? null;
+            if ($neste !== null && count($klynger[$k]['sider']) === 1 && count($klynger[$neste]['sider']) >= 3) {
+                $this->nivaer[(string) $k] = min($niva, 3);
+
+                continue;
+            }
             $this->nivaer[(string) $k] = min($niva++, 3);
         }
     }
@@ -529,6 +547,151 @@ class Strukturtolker
     private function erOverskrift(Linje $l): bool
     {
         return $this->kanVareOverskrift($l) && isset($this->nivaer[$this->klynge($l->hoyde())]);
+    }
+
+    /**
+     * Avgjør hvilke linjer som er overskrifter, ut fra hele gruppen av linjer
+     * med overskriftsskrift som står rett under hverandre.
+     *
+     * Skriftstørrelsen alene er ikke nok. Noen partier setter ingressen i
+     * større skrift, og innledninger til lister som «SV vil:» står ofte i
+     * samme skrift som underoverskriftene. Slike grupper leses som brødtekst.
+     * En overskrift over flere linjer kan ha komma på slutten av en linje
+     * («Trygghet for morgendagen,» + «tro på framtida»).
+     *
+     * @param  list<Linje>  $linjer
+     * @return array<int, bool> linjeindeks => er overskrift
+     */
+    private function vurderOverskriftsgrupper(array $linjer): array
+    {
+        $svar = [];
+        $gruppe = [];
+
+        $vurder = function () use (&$gruppe, &$svar, $linjer) {
+            if ($gruppe === []) {
+                return;
+            }
+            // En innledning til en liste rett under en overskrift, som
+            // «Integrering» + «SV vil:», er tekst selv om overskriften er det.
+            $sisteLinje = $linjer[end($gruppe)];
+            if (count($gruppe) > 1 && $this->erListeinnledning(Tekstrens::normaliser($sisteLinje->tekst))) {
+                $svar[array_pop($gruppe)] = false;
+            }
+            $tekst = Tekstrens::normaliser(implode(' ', array_map(fn ($i) => $linjer[$i]->tekst, $gruppe)));
+            $erTekst = $this->erBrodtekstIOverskriftsskrift($tekst, count($gruppe));
+            $siste = end($gruppe);
+
+            foreach ($gruppe as $i) {
+                $linje = $linjer[$i];
+                $kommaInni = $i !== $siste && preg_match('/,$/u', Tekstrens::normaliser($linje->tekst))
+                    && $linje->antallOrd() <= self::MAKS_ORD_I_OVERSKRIFT;
+                $svar[$i] = ! $erTekst && ($this->kanVareOverskrift($linje) || $kommaInni);
+            }
+            $gruppe = [];
+        };
+
+        foreach ($linjer as $i => $linje) {
+            if (! isset($this->nivaer[$this->klynge($linje->hoyde())])) {
+                $vurder();
+
+                continue;
+            }
+
+            $forrige = $gruppe !== [] ? $linjer[end($gruppe)] : null;
+            if ($forrige !== null && ! (
+                $forrige->side === $linje->side
+                && $this->klynge($forrige->hoyde()) === $this->klynge($linje->hoyde())
+                && ($linje->yMin - $forrige->yMax) < $linje->hoyde() * 0.8
+                && $linje->yMin > $forrige->yMin
+                && ! $this->erNummerertOverskrift($linje)
+            )) {
+                $vurder();
+            }
+            $gruppe[] = $i;
+        }
+        $vurder();
+
+        return $svar;
+    }
+
+    /**
+     * Ser teksten ut som et avsnitt eller en innledning til en liste, selv om
+     * den står i stor skrift?
+     */
+    private function erBrodtekstIOverskriftsskrift(string $tekst, int $antallLinjer): bool
+    {
+        $ord = count(preg_split('/\s+/u', $tekst, -1, PREG_SPLIT_NO_EMPTY));
+
+        // Ingress: lang tekst, flere setninger, eller en hel setning med punktum.
+        if ($ord > 20) {
+            return true;
+        }
+        if ($antallLinjer > 1 && preg_match('/\p{L}[.!?]["»”’)]*\s+["«“(]*\p{Lu}/u', $tekst)) {
+            return true;
+        }
+        if ($ord > 12 && preg_match('/[.!?]["»”’)]*$/u', $tekst)) {
+            return true;
+        }
+        // Fortsettelsen av en setning fra forrige side eller spalte.
+        if (preg_match('/^\p{Ll}/u', $tekst) && $ord > 3) {
+            return true;
+        }
+
+        return $this->erListeinnledning($tekst);
+    }
+
+    /**
+     * Innledning til en liste: «SV vil:», «For å få flere i arbeid vil
+     * Arbeiderpartiet:». Korte overskrifter med kolon, som «Prinsipper:»,
+     * regnes ikke som innledninger.
+     */
+    private function erListeinnledning(string $tekst): bool
+    {
+        $ord = count(preg_split('/\s+/u', $tekst, -1, PREG_SPLIT_NO_EMPTY));
+
+        return preg_match('/:$/u', $tekst) === 1 && (preg_match('/\bvil( at)?:$/iu', $tekst) === 1 || $ord >= 6);
+    }
+
+    /** «4.2 Forsvar» eller «1.10 Fred og internasjonal solidaritet». */
+    private function erNummerertOverskrift(Linje $l): bool
+    {
+        return preg_match('/^\d{1,2}(\.\d{1,2})+\.?\s+\p{Lu}/u', Tekstrens::normaliser($l->tekst)) === 1;
+    }
+
+    /**
+     * Overskrifter som «Del 1: Arbeid og økonomi» deler programmet i store
+     * deler, men står ofte i mindre skrift enn kapitteloverskriftene under.
+     * Da løftes delene til øverste nivå, og overskriftene etter første del
+     * flyttes ett nivå ned, så kapitlene havner under riktig del og ikke under kapitlet
+     * foran.
+     *
+     * @param  list<DokumentKapittel>  $kapitler
+     */
+    private function loftDeloverskrifter(array $kapitler): void
+    {
+        $erDel = fn (DokumentKapittel $k) => preg_match('/^del\s+(\d{1,2}|[ivx]{1,4}|en|to|tre|fire|fem|seks|sju|syv|åtte)\b/iu', $k->tittel) === 1;
+        $deler = array_values(array_filter($kapitler, $erDel));
+        if (count($deler) < 2) {
+            return;
+        }
+
+        $delniva = max(array_map(fn (DokumentKapittel $k) => $k->niva, $deler));
+        $forsteDel = array_search($deler[0], $kapitler, true);
+        $flyttes = array_filter(
+            array_slice($kapitler, $forsteDel, null, true),
+            fn (DokumentKapittel $k) => ! $erDel($k) && $k->niva <= $delniva,
+        );
+        if ($delniva === 1 && $flyttes === []) {
+            return;
+        }
+
+        foreach ($kapitler as $i => $k) {
+            if ($erDel($k)) {
+                $k->niva = 1;
+            } elseif ($i > $forsteDel) {
+                $k->niva = min($k->niva + 1, 3);
+            }
+        }
     }
 
     private function overskriftsniva(Linje $l): int
@@ -555,7 +718,7 @@ class Strukturtolker
     {
         return array_values(array_filter(
             $kapitler,
-            fn (DokumentKapittel $k) => ! preg_match('/^(innhold(sfortegnelse|sliste)?|innhald(sliste)?)$/iu', trim($k->tittel)),
+            fn (DokumentKapittel $k) => ! preg_match('/^(innhold(sfortegnelse|sliste)?|innhald(sliste)?):?$/iu', trim($k->tittel)),
         ));
     }
 }
