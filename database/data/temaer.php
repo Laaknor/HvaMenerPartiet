@@ -232,7 +232,7 @@ return [
     [
         'slug' => 'monarki',
         'navn' => 'Monarki',
-        'beskrivelse' => 'Kongehuset og det konstitusjonelle monarkiet som styreform.',
+        'beskrivelse' => 'Kongehuset og det konstitusjonelle monarkiet som styreform. Alternativet er en republikk med et folkevalgt statsoverhode.',
         'pastand' => 'Norge bør fortsatt være et monarki.',
         'synonymer' => ['monarki', 'kongehuset', 'kongedømme', 'republikk', 'statsoverhode', 'arvekongedømme'],
     ],

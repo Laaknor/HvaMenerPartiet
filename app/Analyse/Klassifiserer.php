@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\DB;
  */
 class Klassifiserer
 {
-    public const PROMPT_VERSJON = 'v3-2026-10';
+    public const PROMPT_VERSJON = 'v4-2026-10';
 
     public function __construct(
         private OllamaKlient $ollama,
@@ -144,9 +144,12 @@ Regler:
 - Hver setning har en kort ID i hakeparentes, som [S3]. I "kildesetninger" oppgir du ID-ene til de setningene som best begrunner standpunktet, for eksempel ["S3", "S4"]. Høyst fem, og bare ID-er som står i teksten.
 - Er standpunktet noe annet enn "ikke_omtalt", skal du alltid oppgi minst én ID.
 - En tekst som sier at noe er viktig, nødvendig eller en forutsetning, støtter påstanden selv om den ikke gjentar påstanden ordrett.
+- En tekst kan også gå imot påstanden uten å nevne den. Vil teksten ha noe som ikke kan gjelde samtidig med påstanden, som et alternativ, en erstatning eller å avskaffe ordningen, er standpunktet "mot". For eksempel går «Skolen bør styres av kommunene» imot påstanden «Staten bør styre skolen».
+- At teksten tar tydelig stilling, eller ligner påstanden i ordlyd, betyr ikke at den er enig. Avgjør retningen: ville noen som mener det teksten sier, svart ja eller nei på påstanden?
 - Teksten må handle om selve temaet. Et nærliggende, men annet tema tar ikke stilling til påstanden, selv om ordene ligner. For eksempel handler skatt på formue ikke om skatt på bolig, og våpen handler ikke om energi.
 - Ikke utled et standpunkt fra generelle holdninger, som at skattene er for høye eller at fred er viktig, når teksten ikke nevner temaet.
 - Svar først på "handler_om_temaet": true bare hvis minst én setning handler om selve temaet. Er svaret false, skal standpunktet være "ikke_omtalt".
+- Skriv så i "tekstens_syn" med egne ord hva teksten vil, uten å se på påstanden. Sammenlign deretter med påstanden og velg standpunkt.
 
 Standpunkt, målt mot påstanden:
 - "for": teksten støtter påstanden tydelig.
@@ -230,12 +233,17 @@ TEKST;
                 // Først, så modellen tar stilling til om teksten handler om
                 // temaet før den velger standpunkt.
                 'handler_om_temaet' => ['type' => 'boolean'],
+                // Hva teksten vil, før det sammenlignes med påstanden. Uten
+                // dette steget leste modellen «Statsoverhodet bør være
+                // folkevalgt» som «for» monarki: teksten var tydelig og
+                // lignet påstanden, men gikk i motsatt retning.
+                'tekstens_syn' => ['type' => 'string'],
                 'standpunkt' => ['type' => 'string', 'enum' => Standpunktverdi::verdier()],
                 'sikkerhet' => ['type' => 'string', 'enum' => ['høy', 'middels', 'lav']],
                 'kildesetninger' => ['type' => 'array', 'items' => ['type' => 'string']],
                 'begrunnelse' => ['type' => 'string'],
             ],
-            'required' => ['handler_om_temaet', 'standpunkt', 'sikkerhet', 'kildesetninger', 'begrunnelse'],
+            'required' => ['handler_om_temaet', 'tekstens_syn', 'standpunkt', 'sikkerhet', 'kildesetninger', 'begrunnelse'],
         ];
     }
 
@@ -353,6 +361,7 @@ TEKST;
         $kjoring = [
             'gyldig' => true,
             'handler_om_temaet' => is_bool($svar['handler_om_temaet'] ?? null) ? $svar['handler_om_temaet'] : null,
+            'tekstens_syn' => trim((string) ($svar['tekstens_syn'] ?? '')),
             'verdi' => $verdi->value,
             'sikkerhet' => Sikkerhet::fraModell((string) ($svar['sikkerhet'] ?? 'lav'))->value,
             'kildesetninger' => $gyldige,
