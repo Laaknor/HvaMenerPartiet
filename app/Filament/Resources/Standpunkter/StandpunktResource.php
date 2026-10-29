@@ -116,6 +116,7 @@ class StandpunktResource extends Resource
                             TextEntry::make('handler_om_temaet')->label('Handler om temaet')
                                 ->formatStateUsing(fn ($state) => is_bool($state) ? ($state ? 'Ja' : 'Nei') : '–')
                                 ->placeholder('–'),
+                            TextEntry::make('tekstens_syn')->label('Tekstens syn')->placeholder('–')->columnSpan(3),
                             TextEntry::make('merknad')->placeholder('–')->columnSpan(3),
                             TextEntry::make('feil')->placeholder('–')->columnSpanFull(),
                             TextEntry::make('ugyldige_kilder')->label('Ugyldige kilder')->listWithLineBreaks()->placeholder('Ingen')->columnSpanFull(),

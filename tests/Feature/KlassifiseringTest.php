@@ -394,6 +394,26 @@ class KlassifiseringTest extends TestCase
         $this->assertSame('handler_om_temaet', array_key_first(Klassifiserer::svarskjema()['properties']));
     }
 
+    public function test_modellen_beskriver_tekstens_syn_for_den_velger_standpunkt(): void
+    {
+        $this->ollama->chatsvar = [
+            ['tekstens_syn' => 'Teksten vil at Norge skal være med i NATO.'] + $this->svar('for', ['S1']),
+            $this->svar('for', ['S1']),
+        ];
+
+        $s = app(Klassifiserer::class)->klassifiser($this->nato, $this->program, Kildetype::Arbeidsprogram);
+
+        $felter = array_keys(Klassifiserer::svarskjema()['properties']);
+        $this->assertLessThan(array_search('standpunkt', $felter), array_search('tekstens_syn', $felter));
+        $this->assertSame('Teksten vil at Norge skal være med i NATO.', $s->kjoringer[0]['tekstens_syn']);
+        $this->assertSame('', $s->kjoringer[1]['tekstens_syn']);
+
+        // Prompten forklarer at et alternativ som utelukker påstanden, er «mot».
+        $system = $this->ollama->chatkall[0]['messages'][0]['content'];
+        $this->assertStringContainsString('kan også gå imot påstanden uten å nevne den', $system);
+        $this->assertStringContainsString('ligner påstanden i ordlyd, betyr ikke at den er enig', $system);
+    }
+
     public function test_adminsiden_viser_kjoringene_med_feil(): void
     {
         $this->ollama->chatsvar = [$this->svar('for', []), $this->svar('for', []), $this->svar('mot', ['S1']), $this->svar('mot', ['S1'])];
