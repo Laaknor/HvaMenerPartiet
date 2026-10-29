@@ -30,6 +30,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -52,6 +53,9 @@ class ProgramResource extends Resource
     protected static string|UnitEnum|null $navigationGroup = 'Prosessflyt';
 
     protected static ?int $navigationSort = 1;
+
+    /** Filterverdi for programmer som ikke hører til en stortingsperiode. */
+    public const UTEN_PERIODE = 'uten';
 
     public static function getNavigationBadge(): ?string
     {
@@ -150,6 +154,7 @@ class ProgramResource extends Resource
             ->columns([
                 TextColumn::make('parti.forkortelse')->label('Parti')->sortable(),
                 TextColumn::make('tittel')->description(fn (Program $record) => $record->nokkel)->searchable(['tittel', 'nokkel']),
+                TextColumn::make('periode')->placeholder('–')->sortable()->toggleable(),
                 TextColumn::make('type')->badge()->toggleable(isToggledHiddenByDefault: true),
                 IconColumn::make('kildefil')
                     ->label('PDF')
@@ -171,9 +176,21 @@ class ProgramResource extends Resource
                 TextColumn::make('standpunkter_count')->label('Standpunkter')->numeric(),
             ])
             ->filters([
+                SelectFilter::make('parti')
+                    ->label('Parti')
+                    ->relationship('parti', 'forkortelse', fn (Builder $query) => $query->orderBy('forkortelse'))
+                    ->multiple()
+                    ->searchable()
+                    ->preload(),
+                SelectFilter::make('periode')
+                    ->label('Stortingsperiode')
+                    ->options(fn () => self::periodevalg())
+                    ->multiple()
+                    ->query(fn (Builder $query, array $data) => self::filtrerPeriode($query, $data['values'] ?? [])),
                 SelectFilter::make('digitalisering_status')->label('Digitalisering')->options(Digitaliseringsstatus::class),
-                SelectFilter::make('parti')->relationship('parti', 'forkortelse'),
-            ])
+            ], layout: FiltersLayout::AboveContentCollapsible)
+            ->filtersFormColumns(3)
+            ->persistFiltersInSession()
             ->recordActions([
                 ViewAction::make()->label('Gå gjennom'),
                 ActionGroup::make([
@@ -181,6 +198,43 @@ class ProgramResource extends Resource
                     EditAction::make(),
                 ]),
             ]);
+    }
+
+    /** Valg for periodefilteret: nyeste periode først, og programmer uten periode til slutt. */
+    public static function periodevalg(): array
+    {
+        $valg = Program::query()
+            ->whereNotNull('periode')
+            ->distinct()
+            ->orderByDesc('periode')
+            ->pluck('periode', 'periode')
+            ->all();
+
+        if (Program::query()->whereNull('periode')->exists()) {
+            $valg[self::UTEN_PERIODE] = 'Uten periode (prinsipprogram)';
+        }
+
+        return $valg;
+    }
+
+    /** @param  list<string>  $perioder */
+    public static function filtrerPeriode(Builder $query, array $perioder): Builder
+    {
+        if ($perioder === []) {
+            return $query;
+        }
+
+        $utenPeriode = in_array(self::UTEN_PERIODE, $perioder, true);
+        $perioder = array_values(array_diff($perioder, [self::UTEN_PERIODE]));
+
+        return $query->where(function (Builder $q) use ($perioder, $utenPeriode) {
+            if ($perioder !== []) {
+                $q->whereIn('periode', $perioder);
+            }
+            if ($utenPeriode) {
+                $q->orWhereNull('periode');
+            }
+        });
     }
 
     public static function status(Program $program): Programstatus
